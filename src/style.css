@@ -350,7 +350,7 @@ textarea.calc-error:focus + .value-highlight-overlay {
 	font-weight: 600;
 	color: var(--text-secondary);
 	padding: 0.1rem 0.25rem;
-	cursor: default;
+	cursor: inherit;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
