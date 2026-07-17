@@ -230,8 +230,42 @@ input[type="number"]:focus {
   box-shadow: none !important;
 }
 
+.var-value-wrapper {
+  position: relative;
+  width: 100%;
+}
+
 .var-value-input {
   font-family: var(--font-mono) !important;
+  position: relative;
+  z-index: 2;
+  overflow-x: auto;
+}
+
+.var-value-input:focus {
+  color: transparent !important;
+  caret-color: var(--text-primary) !important;
+}
+
+/* Value syntax highlight overlay */
+.value-highlight-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid transparent;
+  background: transparent !important;
+  color: var(--text-primary);
+  font-family: var(--font-mono) !important;
+  font-size: 0.9rem;
+  pointer-events: none;
+  white-space: pre;
+  overflow: hidden;
+  box-sizing: border-box;
+  display: none;
+  z-index: 1;
 }
 
 /* Custom Webkit Number Spinners styling */
@@ -453,5 +487,74 @@ input.calc-error {
 .btn-add-board:hover svg {
   stroke: var(--accent-primary);
 }
+
+/* Card Reference Highlights - Badge colors too! */
+.variable-card.card-hl-1 {
+  border-color: #3b82f6 !important;
+  background-color: #eff6ff !important;
+}
+.variable-card.card-hl-1 .variable-badge {
+  background-color: #2563eb !important;
+  color: white !important;
+}
+
+.variable-card.card-hl-2 {
+  border-color: #f59e0b !important;
+  background-color: #fffbeb !important;
+}
+.variable-card.card-hl-2 .variable-badge {
+  background-color: #d97706 !important;
+  color: white !important;
+}
+
+.variable-card.card-hl-3 {
+  border-color: #10b981 !important;
+  background-color: #ecfdf5 !important;
+}
+.variable-card.card-hl-3 .variable-badge {
+  background-color: #059669 !important;
+  color: white !important;
+}
+
+.variable-card.card-hl-4 {
+  border-color: #8b5cf6 !important;
+  background-color: #f5f3ff !important;
+}
+.variable-card.card-hl-4 .variable-badge {
+  background-color: #7c3aed !important;
+  color: white !important;
+}
+
+.variable-card.card-hl-5 {
+  border-color: #ec4899 !important;
+  background-color: #fdf2f8 !important;
+}
+.variable-card.card-hl-5 .variable-badge {
+  background-color: #db2777 !important;
+  color: white !important;
+}
+
+/* Syntax Highlighting inside input overlay */
+.hl-1 {
+  color: #2563eb !important;
+  font-weight: 700;
+}
+.hl-2 {
+  color: #d97706 !important;
+  font-weight: 700;
+}
+.hl-3 {
+  color: #059669 !important;
+  font-weight: 700;
+}
+.hl-4 {
+  color: #7c3aed !important;
+  font-weight: 700;
+}
+.hl-5 {
+  color: #db2777 !important;
+  font-weight: 700;
+}
+
 
 

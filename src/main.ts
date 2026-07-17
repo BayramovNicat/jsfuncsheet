@@ -224,6 +224,70 @@ function autoSizeInput(inputEl: HTMLInputElement) {
   const length = inputEl.value.length;
   const calculatedWidth = Math.max(214, (length + 4) * 9.5);
   inputEl.style.width = `${calculatedWidth}px`;
+
+  // Synchronise overlay width to match input width perfectly
+  const cardEl = inputEl.closest('.variable-card');
+  if (cardEl) {
+    const overlayEl = cardEl.querySelector('.value-highlight-overlay') as HTMLDivElement;
+    if (overlayEl) {
+      overlayEl.style.width = `${calculatedWidth}px`;
+    }
+  }
+}
+
+// Escapes HTML tags and highlights syntax variables with colors (hl-1 to hl-5)
+function syntaxHighlight(formula: string, activeId: string): string {
+  let escaped = formula
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const activeBoard = getActiveBoard();
+  
+  // Sort variables descending by length to prevent partial matching
+  const sortedVars = [...activeBoard.variables]
+    .filter(x => x.id !== activeId)
+    .sort((a, b) => b.id.length - a.id.length);
+
+  const refIds = sortedVars
+    .filter((x) => new RegExp(`\\b${x.id}\\b`).test(formula))
+    .map(x => x.id);
+
+  refIds.forEach((id, index) => {
+    const colorIndex = (index % 5) + 1;
+    const regex = new RegExp(`\\b${id}\\b`, 'g');
+    escaped = escaped.replace(regex, `<span class="hl-${colorIndex}">${id}</span>`);
+  });
+
+  return escaped;
+}
+
+// Applies highlighting classes to cards referenced in active formula
+function updateCardHighlights(activeId: string, formulaStr: string) {
+  clearCardHighlights();
+  
+  const activeBoard = getActiveBoard();
+  const sortedVars = [...activeBoard.variables]
+    .filter(x => x.id !== activeId)
+    .sort((a, b) => b.id.length - a.id.length);
+
+  const refIds = sortedVars
+    .filter((x) => new RegExp(`\\b${x.id}\\b`).test(formulaStr))
+    .map(x => x.id);
+
+  refIds.forEach((id, index) => {
+    const colorIndex = (index % 5) + 1;
+    const cardEl = document.querySelector(`.variable-card[data-id="${id}"]`);
+    if (cardEl) {
+      cardEl.classList.add(`card-hl-${colorIndex}`);
+    }
+  });
+}
+
+function clearCardHighlights() {
+  document.querySelectorAll('.variable-card').forEach((card) => {
+    card.classList.remove('card-hl-1', 'card-hl-2', 'card-hl-3', 'card-hl-4', 'card-hl-5');
+  });
 }
 
 // Find first vacant position (scanning vertically within visible bounds, then shifting horizontally, and finally going deeper)
@@ -233,7 +297,6 @@ function findVacantPosition(): { x: number; y: number } {
   const cardHeight = 60;
   
   const containerWidth = inputsContainer.clientWidth || window.innerWidth || 800;
-  // Subtract footer tab bar height (48px) from clientHeight measurements
   const containerHeight = (inputsContainer.clientHeight || window.innerHeight || 600) - 48;
 
   // Phase 1: Scan vertically down column 1, then column 2, etc. (strictly inside visible screen space)
@@ -317,10 +380,23 @@ function insertBadgeId(id: string) {
     active.value = oldVal.substring(0, start) + id + oldVal.substring(end);
     variable.formula = active.value;
     
+    // Position cursor right after inserted text
     const newPos = start + id.length;
     active.setSelectionRange(newPos, newPos);
 
     autoSizeInput(active);
+    
+    // Sync overlay if present
+    const cardEl = active.closest('.variable-card');
+    if (cardEl) {
+      const overlayEl = cardEl.querySelector('.value-highlight-overlay') as HTMLDivElement;
+      if (overlayEl) {
+        overlayEl.innerHTML = syntaxHighlight(active.value, variable.id);
+        overlayEl.scrollLeft = active.scrollLeft;
+      }
+    }
+
+    updateCardHighlights(variable.id, active.value);
     evaluateAll();
     updateInputsDisplay();
   }
@@ -353,13 +429,17 @@ function renderVariables() {
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
             </button>
           </div>
-          <input type="${initialType}" class="var-value-input" data-id="${variable.id}" value="${displayVal}" step="any" spellcheck="false" autocomplete="off">
+          <div class="var-value-wrapper">
+            <div class="value-highlight-overlay" data-id="${variable.id}"></div>
+            <input type="${initialType}" class="var-value-input" data-id="${variable.id}" value="${displayVal}" step="any" spellcheck="false" autocomplete="off">
+          </div>
         </div>
       </div>
     `;
 
     const labelSpan = card.querySelector('.var-label-span') as HTMLSpanElement;
     const valInput = card.querySelector('.var-value-input') as HTMLInputElement;
+    const overlayEl = card.querySelector('.value-highlight-overlay') as HTMLDivElement;
     const deleteBtn = card.querySelector('.btn-delete') as HTMLButtonElement;
     const badgeBtn = card.querySelector('.variable-badge') as HTMLDivElement;
 
@@ -405,8 +485,6 @@ function renderVariables() {
       input.select();
     });
 
-
-
     badgeBtn.addEventListener('mousedown', (e) => {
       const active = document.activeElement;
       if (active && active.classList.contains('var-value-input')) {
@@ -415,15 +493,33 @@ function renderVariables() {
       }
     });
 
+    // Scroll mapping
+    valInput.addEventListener('scroll', () => {
+      overlayEl.scrollLeft = valInput.scrollLeft;
+    });
+
+    // Value input events
     valInput.addEventListener('focus', () => {
       valInput.type = 'text';
       valInput.value = variable.formula;
       valInput.classList.remove('calc-error');
+      
       autoSizeInput(valInput);
+
+      // Trigger overlay highlighter
+      overlayEl.style.display = 'block';
+      overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id);
+      overlayEl.scrollLeft = valInput.scrollLeft;
+
+      updateCardHighlights(variable.id, valInput.value);
     });
 
     valInput.addEventListener('blur', () => {
       valInput.style.width = '';
+      overlayEl.style.width = '';
+      overlayEl.style.display = 'none';
+      clearCardHighlights();
+      
       evaluateAll();
       updateInputsDisplay();
     });
@@ -431,6 +527,12 @@ function renderVariables() {
     valInput.addEventListener('input', () => {
       variable.formula = valInput.value;
       autoSizeInput(valInput);
+
+      overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id);
+      overlayEl.scrollLeft = valInput.scrollLeft;
+
+      updateCardHighlights(variable.id, valInput.value);
+      
       evaluateAll();
       updateInputsDisplay();
     });
@@ -460,6 +562,10 @@ function renderVariables() {
           variable.formula = valInput.value;
           
           autoSizeInput(valInput);
+          overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id);
+          overlayEl.scrollLeft = valInput.scrollLeft;
+          updateCardHighlights(variable.id, valInput.value);
+
           evaluateAll();
           updateInputsDisplay();
         }
@@ -586,13 +692,12 @@ function renderTabsList() {
     
     // Switch active board on click
     tab.addEventListener('click', (e) => {
-      // Don't shift target if clicking inline editor input or close button
       const target = e.target as HTMLElement;
       if (target.closest('.btn-tab-close') || target.tagName === 'INPUT') {
         return;
       }
       if (activeBoardId === board.id) {
-        return; // Avoid destroying DOM on click so dblclick can work
+        return;
       }
       activeBoardId = board.id;
       renderTabsList();
