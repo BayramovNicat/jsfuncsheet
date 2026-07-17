@@ -1,7 +1,7 @@
 import "./style.css";
 import { calculateDraggedPosition } from "./canvas";
 import { evaluateAllVariables } from "./math";
-import { getActiveBoard } from "./state";
+import { getActiveBoard, saveStateToLocalStorage } from "./state";
 import {
 	getActiveTooltipTarget,
 	hideTooltip,
@@ -80,6 +80,7 @@ window.addEventListener("mouseup", () => {
 			card.style.zIndex = "1";
 		}
 		setActiveDragId(null);
+		saveStateToLocalStorage();
 	}
 });
 

@@ -1,4 +1,5 @@
 import type { Variable } from "./types";
+import { saveStateToLocalStorage } from "./state";
 
 const STATIC_NUMBER_REGEX = /^-?\d+(\.\d+)?$/;
 
@@ -243,4 +244,6 @@ export function evaluateAllVariables(variables: Variable[]) {
 			v.hasError = true;
 		}
 	});
+
+	saveStateToLocalStorage();
 }

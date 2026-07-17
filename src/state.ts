@@ -115,8 +115,36 @@ export function getBoards(): Board[] {
 	return boards;
 }
 
+export function saveStateToLocalStorage() {
+	try {
+		localStorage.setItem("excell_boards", JSON.stringify(boards));
+		localStorage.setItem("excell_active_board_id", activeBoardId);
+	} catch (e) {
+		console.error("Failed to save state to localStorage", e);
+	}
+}
+
+export function loadStateFromLocalStorage() {
+	try {
+		const storedBoards = localStorage.getItem("excell_boards");
+		const storedActiveId = localStorage.getItem("excell_active_board_id");
+		if (storedBoards) {
+			boards = JSON.parse(storedBoards);
+		}
+		if (storedActiveId) {
+			activeBoardId = storedActiveId;
+		}
+	} catch (e) {
+		console.error("Failed to load state from localStorage", e);
+	}
+}
+
+// Auto-load state on module initialization
+loadStateFromLocalStorage();
+
 export function setBoards(newBoards: Board[]) {
 	boards = newBoards;
+	saveStateToLocalStorage();
 }
 
 export function getActiveBoardId(): string {
@@ -125,6 +153,7 @@ export function getActiveBoardId(): string {
 
 export function setActiveBoardId(id: string) {
 	activeBoardId = id;
+	saveStateToLocalStorage();
 }
 
 export function getUniqueColorIndex(

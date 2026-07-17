@@ -12,6 +12,7 @@ import {
 	getActiveBoard,
 	getActiveBoardId,
 	getBoards,
+	saveStateToLocalStorage,
 	setActiveBoardId,
 	setBoards,
 	updateCardHighlights,
@@ -289,6 +290,7 @@ function bindVariableCardEvents(
 			variable.label = input.value.trim() || `Variable ${variable.id}`;
 			renderVariables();
 			updateInputsDisplay();
+			saveStateToLocalStorage();
 		};
 
 		input.addEventListener("blur", saveLabel);
