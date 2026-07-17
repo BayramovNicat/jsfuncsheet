@@ -11,6 +11,13 @@ export function findVacantPosition(
 	const cardHeight = LAYOUT_CONFIG.CARD_HEIGHT;
 	const activeHeight = containerHeight - LAYOUT_CONFIG.FOOTER_HEIGHT;
 
+	const bboxes = variables.map((v) => ({
+		left: v.x,
+		right: v.x + cardWidth,
+		top: v.y,
+		bottom: v.y + cardHeight,
+	}));
+
 	// Phase 1: Scan vertically down column 1, then column 2, etc. (strictly inside visible screen space)
 	for (
 		let x = LAYOUT_CONFIG.MARGIN;
@@ -22,12 +29,12 @@ export function findVacantPosition(
 			y < activeHeight - cardHeight;
 			y += LAYOUT_CONFIG.ROW_PITCH
 		) {
-			const overlaps = variables.some((v) => {
+			const overlaps = bboxes.some((b) => {
 				return !(
-					x + cardWidth <= v.x ||
-					v.x + cardWidth <= x ||
-					y + cardHeight <= v.y ||
-					v.y + cardHeight <= y
+					x + cardWidth <= b.left ||
+					b.right <= x ||
+					y + cardHeight <= b.top ||
+					b.bottom <= y
 				);
 			});
 			if (!overlaps) {
@@ -53,12 +60,12 @@ export function findVacantPosition(
 			x < containerWidth - cardWidth + LAYOUT_CONFIG.MARGIN;
 			x += LAYOUT_CONFIG.COL_PITCH
 		) {
-			const overlaps = variables.some((v) => {
+			const overlaps = bboxes.some((b) => {
 				return !(
-					x + cardWidth <= v.x ||
-					v.x + cardWidth <= x ||
-					y + cardHeight <= v.y ||
-					v.y + cardHeight <= y
+					x + cardWidth <= b.left ||
+					b.right <= x ||
+					y + cardHeight <= b.top ||
+					b.bottom <= y
 				);
 			});
 			if (!overlaps) {

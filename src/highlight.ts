@@ -85,11 +85,17 @@ function escapeHtml(text: string): string {
 		.replace(/>/g, "&gt;");
 }
 
+const tokenizeCache = new Map<string, Token[]>();
+
 function tokenize(
 	formula: string,
 	activeId: string,
 	variables: Variable[],
 ): Token[] {
+	const cacheKey = `${formula}||${activeId}||${variables.map((v) => `${v.id}:${v.colorIndex ?? 1}`).join(",")}`;
+	const cached = tokenizeCache.get(cacheKey);
+	if (cached) return cached;
+
 	const tokens: Token[] = [];
 	let i = 0;
 	const len = formula.length;
@@ -303,6 +309,11 @@ function tokenize(
 		tokens.push({ type: "text", text: char });
 		i++;
 	}
+
+	if (tokenizeCache.size > 1000) {
+		tokenizeCache.clear();
+	}
+	tokenizeCache.set(cacheKey, tokens);
 
 	return tokens;
 }

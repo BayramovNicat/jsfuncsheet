@@ -136,7 +136,9 @@ export function setShowBadges(show: boolean) {
 	saveStateToLocalStorage();
 }
 
-export function saveStateToLocalStorage() {
+let saveTimeout: number | undefined;
+
+function performSave() {
 	try {
 		localStorage.setItem("jsfuncsheet_boards", JSON.stringify(boards));
 		localStorage.setItem("jsfuncsheet_active_board_id", activeBoardId);
@@ -149,6 +151,23 @@ export function saveStateToLocalStorage() {
 		console.error("Failed to save state to localStorage", e);
 	}
 }
+
+export function saveStateToLocalStorage() {
+	if (saveTimeout !== undefined) {
+		clearTimeout(saveTimeout);
+	}
+	saveTimeout = setTimeout(() => {
+		performSave();
+		saveTimeout = undefined;
+	}, 300) as unknown as number;
+}
+
+window.addEventListener("beforeunload", () => {
+	if (saveTimeout !== undefined) {
+		clearTimeout(saveTimeout);
+		performSave();
+	}
+});
 
 export function loadStateFromLocalStorage() {
 	try {

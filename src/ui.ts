@@ -872,8 +872,6 @@ export function drawConnections(): void {
 			"position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;",
 		);
 		inputsContainer.prepend(svg);
-	} else {
-		svg.innerHTML = "";
 	}
 
 	const show = getShowConnections();
@@ -902,27 +900,40 @@ export function drawConnections(): void {
 		"#4f46e5",
 	];
 
-	const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-	colors.forEach((color, idx) => {
-		const marker = document.createElementNS(
-			"http://www.w3.org/2000/svg",
-			"marker",
-		);
-		marker.id = `arrow-${idx + 1}`;
-		marker.setAttribute("viewBox", "0 0 10 10");
-		marker.setAttribute("refX", "6");
-		marker.setAttribute("refY", "5");
-		marker.setAttribute("markerWidth", "6");
-		marker.setAttribute("markerHeight", "6");
-		marker.setAttribute("orient", "auto-start-reverse");
+	let defs = svg.querySelector("defs");
+	if (!defs) {
+		const newDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+		colors.forEach((color, idx) => {
+			const marker = document.createElementNS(
+				"http://www.w3.org/2000/svg",
+				"marker",
+			);
+			marker.id = `arrow-${idx + 1}`;
+			marker.setAttribute("viewBox", "0 0 10 10");
+			marker.setAttribute("refX", "6");
+			marker.setAttribute("refY", "5");
+			marker.setAttribute("markerWidth", "6");
+			marker.setAttribute("markerHeight", "6");
+			marker.setAttribute("orient", "auto-start-reverse");
 
-		const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-		path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-		path.setAttribute("fill", color);
-		marker.appendChild(path);
-		defs.appendChild(marker);
+			const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+			path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+			path.setAttribute("fill", color);
+			marker.appendChild(path);
+			newDefs.appendChild(marker);
+		});
+		defs = newDefs;
+		svg.appendChild(defs);
+	}
+
+	const activeKeys = new Set<string>();
+	const existingPathsMap = new Map<string, SVGPathElement>();
+	svg.querySelectorAll("path.connection-line").forEach((path) => {
+		const connId = path.getAttribute("data-connection-id");
+		if (connId) {
+			existingPathsMap.set(connId, path as SVGPathElement);
+		}
 	});
-	svg.appendChild(defs);
 
 	activeBoard.variables.forEach((v) => {
 		if (v.hasError) return;
@@ -1039,23 +1050,35 @@ export function drawConnections(): void {
 
 			const pathData = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
 
-			const path = document.createElementNS(
-				"http://www.w3.org/2000/svg",
-				"path",
-			);
-			path.setAttribute("d", pathData);
-			path.setAttribute("fill", "none");
-
+			const connId = `${refId}->${v.id}`;
+			activeKeys.add(connId);
+			let path = existingPathsMap.get(connId);
 			const colorIdx = refVar.colorIndex || 1;
 			const color = colors[colorIdx - 1];
-			path.setAttribute("stroke", color);
-			path.setAttribute("stroke-width", "2");
-			path.setAttribute("stroke-linecap", "round");
-			path.setAttribute("opacity", "0.35");
-			path.setAttribute("marker-end", `url(#arrow-${colorIdx})`);
-			path.setAttribute("class", `connection-line src-${refId} target-${v.id}`);
 
-			svg.appendChild(path);
+			if (!path) {
+				path = document.createElementNS(
+					"http://www.w3.org/2000/svg",
+					"path",
+				) as SVGPathElement;
+				path.setAttribute("data-connection-id", connId);
+				path.setAttribute("fill", "none");
+				path.setAttribute("stroke-width", "2");
+				path.setAttribute("stroke-linecap", "round");
+				path.setAttribute("opacity", "0.35");
+				path.setAttribute("class", `connection-line src-${refId} target-${v.id}`);
+				svg.appendChild(path);
+			}
+
+			path.setAttribute("d", pathData);
+			path.setAttribute("stroke", color);
+			path.setAttribute("marker-end", `url(#arrow-${colorIdx})`);
 		});
+	});
+
+	existingPathsMap.forEach((path, connId) => {
+		if (!activeKeys.has(connId)) {
+			path.remove();
+		}
 	});
 }
