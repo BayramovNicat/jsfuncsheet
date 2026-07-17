@@ -565,6 +565,39 @@ textarea.calc-error:focus {
 }
 
 /* Syntax Highlighting inside input overlay */
+.js-comment {
+	color: #008000 !important;
+	font-style: italic !important;
+}
+.js-string {
+	color: #a31515 !important;
+}
+.js-keyword-control {
+	color: #af00db !important;
+	font-weight: 600 !important;
+}
+.js-keyword {
+	color: #0000ff !important;
+	font-weight: 600 !important;
+}
+.js-builtin {
+	color: #267f99 !important;
+	font-weight: 600 !important;
+}
+.js-number {
+	color: #098658 !important;
+}
+.js-function {
+	color: #795e26 !important;
+}
+.js-property {
+	color: #001080 !important;
+}
+.js-operator,
+.js-punctuation {
+	color: #3b3b3b !important;
+}
+
 .hl-1 {
 	color: #2563eb !important;
 	font-weight: 700;
