@@ -117,8 +117,8 @@ export function getBoards(): Board[] {
 
 export function saveStateToLocalStorage() {
 	try {
-		localStorage.setItem("excell_boards", JSON.stringify(boards));
-		localStorage.setItem("excell_active_board_id", activeBoardId);
+		localStorage.setItem("jsfuncsheet_boards", JSON.stringify(boards));
+		localStorage.setItem("jsfuncsheet_active_board_id", activeBoardId);
 	} catch (e) {
 		console.error("Failed to save state to localStorage", e);
 	}
@@ -126,8 +126,17 @@ export function saveStateToLocalStorage() {
 
 export function loadStateFromLocalStorage() {
 	try {
-		const storedBoards = localStorage.getItem("excell_boards");
-		const storedActiveId = localStorage.getItem("excell_active_board_id");
+		let storedBoards = localStorage.getItem("jsfuncsheet_boards");
+		let storedActiveId = localStorage.getItem("jsfuncsheet_active_board_id");
+
+		// Fallback to old keys for backward compatibility
+		if (!storedBoards) {
+			storedBoards = localStorage.getItem("excell_boards");
+		}
+		if (!storedActiveId) {
+			storedActiveId = localStorage.getItem("excell_active_board_id");
+		}
+
 		if (storedBoards) {
 			boards = JSON.parse(storedBoards);
 		}
