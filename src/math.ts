@@ -207,7 +207,11 @@ function escapeHtml(text: string): string {
 		.replace(/>/g, "&gt;");
 }
 
-function tokenize(formula: string, refIds: string[]): Token[] {
+function tokenize(
+	formula: string,
+	activeId: string,
+	variables: Variable[],
+): Token[] {
 	const tokens: Token[] = [];
 	let i = 0;
 	const len = formula.length;
@@ -374,12 +378,12 @@ function tokenize(formula: string, refIds: string[]): Token[] {
 					tokens.push({ type: "property", text });
 				}
 			} else {
-				if (refIds.includes(text)) {
-					const index = refIds.indexOf(text);
+				const foundVar = variables.find((x) => x.id === text);
+				if (foundVar && foundVar.id !== activeId) {
 					tokens.push({
 						type: "board-variable",
 						text,
-						colorIndex: (index % 5) + 1,
+						colorIndex: foundVar.colorIndex ?? 1,
 					});
 				} else if (CONTROL_KEYWORDS.has(text)) {
 					tokens.push({ type: "keyword-control", text });
@@ -431,15 +435,7 @@ export function syntaxHighlight(
 	activeId: string,
 	variables: Variable[],
 ): string {
-	const sortedVars = [...variables]
-		.filter((x) => x.id !== activeId)
-		.sort((a, b) => b.id.length - a.id.length);
-
-	const refIds = sortedVars
-		.filter((x) => new RegExp(`\\b${x.id}\\b`).test(formula))
-		.map((x) => x.id);
-
-	const tokens = tokenize(formula, refIds);
+	const tokens = tokenize(formula, activeId, variables);
 
 	return tokens
 		.map((token) => {

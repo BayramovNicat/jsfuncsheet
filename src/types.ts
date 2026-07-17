@@ -6,6 +6,7 @@ export interface Variable {
 	hasError: boolean;
 	x: number; // absolute X position on canvas
 	y: number; // absolute Y position on canvas
+	colorIndex?: number; // Persistent color index (1 to 10)
 }
 
 export interface Board {

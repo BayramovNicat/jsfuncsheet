@@ -117,8 +117,30 @@ export function setActiveBoardId(id: string) {
 	activeBoardId = id;
 }
 
+export function getUniqueColorIndex(
+	variables: { colorIndex?: number }[],
+): number {
+	const used = new Set(
+		variables.map((v) => v.colorIndex).filter((c) => c !== undefined),
+	);
+	for (let i = 1; i <= 10; i++) {
+		if (!used.has(i)) {
+			return i;
+		}
+	}
+	return (variables.length % 10) + 1;
+}
+
 export function getActiveBoard(): Board {
-	return boards.find((x) => x.id === activeBoardId) ?? boards[0];
+	const board = boards.find((x) => x.id === activeBoardId) ?? boards[0];
+	board.variables.forEach((v) => {
+		if (v.colorIndex === undefined) {
+			v.colorIndex = getUniqueColorIndex(
+				board.variables.filter((x) => x !== v && x.colorIndex !== undefined),
+			);
+		}
+	});
+	return board;
 }
 
 // Generate next available single/double letter Variable ID
@@ -158,11 +180,11 @@ export function updateCardHighlights(activeId: string, formulaStr: string) {
 		.filter((x) => new RegExp(`\\b${x.id}\\b`).test(formulaStr))
 		.map((x) => x.id);
 
-	refIds.forEach((id, index) => {
-		const colorIndex = (index % 5) + 1;
+	refIds.forEach((id) => {
+		const found = activeBoard.variables.find((x) => x.id === id);
 		const cardEl = document.querySelector(`.variable-card[data-id="${id}"]`);
-		if (cardEl) {
-			cardEl.classList.add(`card-hl-${colorIndex}`);
+		if (cardEl && found) {
+			cardEl.classList.add(`card-hl-${found.colorIndex}`);
 		}
 	});
 }
@@ -175,6 +197,11 @@ export function clearCardHighlights() {
 			"card-hl-3",
 			"card-hl-4",
 			"card-hl-5",
+			"card-hl-6",
+			"card-hl-7",
+			"card-hl-8",
+			"card-hl-9",
+			"card-hl-10",
 		);
 	});
 }

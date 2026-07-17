@@ -568,6 +568,51 @@ textarea.calc-error:focus {
 	color: white !important;
 }
 
+.variable-card.card-hl-6 {
+	border-color: #22d3ee !important;
+	background-color: #ecfeff !important;
+}
+.variable-card.card-hl-6 .variable-badge {
+	background-color: #0891b2 !important;
+	color: white !important;
+}
+
+.variable-card.card-hl-7 {
+	border-color: #fb7185 !important;
+	background-color: #fff1f2 !important;
+}
+.variable-card.card-hl-7 .variable-badge {
+	background-color: #e11d48 !important;
+	color: white !important;
+}
+
+.variable-card.card-hl-8 {
+	border-color: #2dd4bf !important;
+	background-color: #f0fdfa !important;
+}
+.variable-card.card-hl-8 .variable-badge {
+	background-color: #0d9488 !important;
+	color: white !important;
+}
+
+.variable-card.card-hl-9 {
+	border-color: #a3e635 !important;
+	background-color: #f7fee7 !important;
+}
+.variable-card.card-hl-9 .variable-badge {
+	background-color: #65a30d !important;
+	color: white !important;
+}
+
+.variable-card.card-hl-10 {
+	border-color: #818cf8 !important;
+	background-color: #e0e7ff !important;
+}
+.variable-card.card-hl-10 .variable-badge {
+	background-color: #4f46e5 !important;
+	color: white !important;
+}
+
 /* Syntax Highlighting inside input overlay */
 .js-comment {
 	color: #008000 !important;
@@ -632,6 +677,41 @@ textarea.calc-error:focus {
 }
 .hl-5 {
 	background-color: #db2777 !important;
+	color: white !important;
+	font-weight: 700;
+	border-radius: 2px;
+	padding: 0 3px;
+}
+.hl-6 {
+	background-color: #0891b2 !important;
+	color: white !important;
+	font-weight: 700;
+	border-radius: 2px;
+	padding: 0 3px;
+}
+.hl-7 {
+	background-color: #e11d48 !important;
+	color: white !important;
+	font-weight: 700;
+	border-radius: 2px;
+	padding: 0 3px;
+}
+.hl-8 {
+	background-color: #0d9488 !important;
+	color: white !important;
+	font-weight: 700;
+	border-radius: 2px;
+	padding: 0 3px;
+}
+.hl-9 {
+	background-color: #65a30d !important;
+	color: white !important;
+	font-weight: 700;
+	border-radius: 2px;
+	padding: 0 3px;
+}
+.hl-10 {
+	background-color: #4f46e5 !important;
 	color: white !important;
 	font-weight: 700;
 	border-radius: 2px;
