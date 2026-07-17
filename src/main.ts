@@ -35,6 +35,18 @@ function isStaticNumber(formula: string): boolean {
   return /^-?\d+(\.\d+)?$/.test(formula.trim());
 }
 
+// Format displays: omit decimals if integer, show up to 2 decimal places otherwise
+function formatDisplayValue(val: number): string {
+  const formatted = val.toFixed(2);
+  if (formatted.endsWith('.00')) {
+    return val.toString();
+  }
+  if (formatted.endsWith('0')) {
+    return val.toFixed(1);
+  }
+  return formatted;
+}
+
 // Helper to generate next sequential Variable ID
 function getNextVariableId(): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -152,15 +164,13 @@ function updateInputsDisplay() {
   activeVariables.forEach((v) => {
     const inputEl = document.querySelector(`.var-value-input[data-id="${v.id}"]`) as HTMLInputElement;
     if (inputEl && document.activeElement !== inputEl) {
-      const isNum = isStaticNumber(v.formula);
-      inputEl.type = isNum ? 'number' : 'text';
+      inputEl.type = 'text';
       
       if (v.hasError) {
-        inputEl.type = 'text';
         inputEl.value = 'Error';
         inputEl.classList.add('calc-error');
       } else {
-        inputEl.value = v.value.toFixed(2);
+        inputEl.value = formatDisplayValue(v.value);
         inputEl.classList.remove('calc-error');
       }
     }
@@ -170,9 +180,9 @@ function updateInputsDisplay() {
 // Auto size active input depending on text length
 function autoSizeInput(inputEl: HTMLInputElement) {
   const length = inputEl.value.length;
-  const isCurrentlyNum = isStaticNumber(inputEl.value);
-  const extraChars = isCurrentlyNum ? 5 : 4; // Extra spacing for spinners & padding
-  const calculatedWidth = Math.max(214, (length + extraChars) * 9.5);
+  // Monospace font character spacing is around 8.5px at font-size 0.9rem
+  // Default inner width is 214px, so widen if requirements exceed it
+  const calculatedWidth = Math.max(214, (length + 4) * 9.5);
   inputEl.style.width = `${calculatedWidth}px`;
 }
 
@@ -282,9 +292,8 @@ function renderVariables() {
     card.style.left = `${variable.x}px`;
     card.style.top = `${variable.y}px`;
 
-    const isNum = isStaticNumber(variable.formula);
-    const initialType = isNum && !variable.hasError ? 'number' : 'text';
-    const displayVal = variable.hasError ? 'Error' : variable.value.toFixed(2);
+    const initialType = 'text';
+    const displayVal = variable.hasError ? 'Error' : formatDisplayValue(variable.value);
 
     card.innerHTML = `
       <div class="variable-card-row">
@@ -341,8 +350,7 @@ function renderVariables() {
 
     // Value input events
     valInput.addEventListener('focus', () => {
-      const isCurrentlyNum = isStaticNumber(variable.formula);
-      valInput.type = isCurrentlyNum ? 'number' : 'text';
+      valInput.type = 'text';
       valInput.value = variable.formula;
       valInput.classList.remove('calc-error');
       
@@ -365,7 +373,34 @@ function renderVariables() {
     });
 
     valInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === 'Escape') {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        const isNum = isStaticNumber(valInput.value);
+        if (isNum) {
+          e.preventDefault();
+          let val = parseFloat(valInput.value);
+          if (isNaN(val)) val = 0;
+          
+          let step = 1;
+          if (e.shiftKey) {
+            step = 10;
+          } else if (e.altKey) {
+            step = 0.1;
+          }
+          
+          if (e.key === 'ArrowUp') {
+            val += step;
+          } else {
+            val -= step;
+          }
+          
+          valInput.value = parseFloat(val.toFixed(4)).toString();
+          variable.formula = valInput.value;
+          
+          autoSizeInput(valInput);
+          evaluateAll();
+          updateInputsDisplay();
+        }
+      } else if (e.key === 'Enter' || e.key === 'Escape') {
         valInput.blur();
       }
     });
