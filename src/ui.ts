@@ -632,8 +632,8 @@ export function renderVariables(): void {
             </button>
           </div>
           <div class="var-value-wrapper">
-            <div class="value-highlight-overlay" data-id="${variable.id}"></div>
             <textarea class="var-value-input" data-id="${variable.id}" spellcheck="false" autocomplete="off" rows="1">${displayVal}</textarea>
+            <div class="value-highlight-overlay" data-id="${variable.id}"></div>
           </div>
         </div>
       </div>

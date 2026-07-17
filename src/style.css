@@ -323,11 +323,21 @@ textarea.calc-error {
 	font-weight: 600;
 }
 
-input.calc-error:focus,
-textarea.calc-error:focus {
+input.calc-error:focus {
 	border-color: var(--danger-text) !important;
 	background: var(--danger-bg) !important;
 	box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
+}
+
+textarea.calc-error:focus {
+	border-color: var(--danger-text) !important;
+	background: transparent !important;
+	box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
+}
+
+textarea.calc-error:focus + .value-highlight-overlay {
+	background: var(--danger-bg) !important;
+	border-color: var(--danger-text) !important;
 }
 
 /* Clean editable label span and inline input */
