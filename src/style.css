@@ -124,7 +124,8 @@ body {
   background-color: #fafafb;
   background-image: radial-gradient(rgba(37, 99, 235, 0.12) 1.5px, transparent 1.5px);
   background-size: 20px 20px;
-  overflow: hidden;
+  background-attachment: local;
+  overflow: auto;
 }
 
 /* Card design styles */

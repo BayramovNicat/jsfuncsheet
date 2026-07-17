@@ -176,15 +176,49 @@ function autoSizeInput(inputEl: HTMLInputElement) {
   inputEl.style.width = `${calculatedWidth}px`;
 }
 
+// Find first vacant position (scanning vertically within visible bounds, then shifting horizontally, and finally going deeper)
+function findVacantPosition(): { x: number; y: number } {
+  const cardWidth = 240;
+  const cardHeight = 80;
+  
+  const containerWidth = inputsContainer.clientWidth || window.innerWidth || 800;
+  const containerHeight = inputsContainer.clientHeight || window.innerHeight || 600;
+
+  // Phase 1: Scan vertically down column 1, then column 2, etc. (strictly inside visible screen space)
+  for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
+    for (let y = 20; y < containerHeight - cardHeight; y += 100) {
+      const overlaps = activeVariables.some((v) => {
+        return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
+                 y + cardHeight <= v.y || v.y + cardHeight <= y);
+      });
+      if (!overlaps) {
+        return { x, y };
+      }
+    }
+  }
+
+  // Phase 2: If the entire visible grid is fully occupied, start placing cards below the fold row-by-row
+  const startY = Math.max(20, Math.floor((containerHeight - cardHeight) / 100) * 100 + 20);
+  for (let y = startY; y < 5000 - cardHeight; y += 100) {
+    for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
+      const overlaps = activeVariables.some((v) => {
+        return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
+                 y + cardHeight <= v.y || v.y + cardHeight <= y);
+      });
+      if (!overlaps) {
+        return { x, y };
+      }
+    }
+  }
+  
+  // Absolute fallback
+  return { x: 20, y: 20 };
+}
+
 // Add a single variable entry
 function addNewVariable() {
   const nextId = getNextVariableId();
-  // Find a relatively vacant space or offset from top-left
-  let maxPosVal = 0;
-  activeVariables.forEach(v => {
-    if (v.x === 20) maxPosVal = Math.max(maxPosVal, v.y);
-  });
-  const newY = maxPosVal > 0 ? maxPosVal + 100 : 20;
+  const pos = findVacantPosition();
 
   activeVariables.push({
     id: nextId,
@@ -192,8 +226,8 @@ function addNewVariable() {
     formula: '10',
     value: 10,
     hasError: false,
-    x: 40,
-    y: Math.min(newY, 480) // keep on visible board
+    x: pos.x,
+    y: pos.y
   });
 
   renderVariables();
