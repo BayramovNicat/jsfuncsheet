@@ -81,6 +81,20 @@ function compileFunctionContext(
 	) => unknown;
 }
 
+const functionCache = new Map<string, (...args: unknown[]) => unknown>();
+function getCompiledFunction(
+	formulaStr: string,
+	parameterNames: string[],
+): (...args: unknown[]) => unknown {
+	const cacheKey = `${formulaStr}||${parameterNames.join(",")}`;
+	let fn = functionCache.get(cacheKey);
+	if (!fn) {
+		fn = compileFunctionContext(formulaStr, parameterNames);
+		functionCache.set(cacheKey, fn);
+	}
+	return fn;
+}
+
 // Live JS Compiler / Syntax Check
 export function compileFormula(
 	formulaStr: string,
@@ -136,7 +150,7 @@ export function compileFormula(
 			referenced,
 			mockValues,
 		);
-		const fn = compileFunctionContext(cleanFormulaStr, names);
+		const fn = getCompiledFunction(cleanFormulaStr, names);
 		fn(...values);
 
 		return { error: null };
@@ -215,7 +229,7 @@ export function evaluateAllVariables(variables: Variable[]) {
 				argNames,
 				argValues,
 			);
-			const fn = compileFunctionContext(formulaStr, names);
+			const fn = getCompiledFunction(formulaStr, names);
 			const rawResult = fn(...evalValues);
 
 			if (

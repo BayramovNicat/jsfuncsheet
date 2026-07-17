@@ -980,13 +980,31 @@ export function drawConnections(): void {
 			const x2 = bestTarget.x;
 			const y2 = bestTarget.y;
 
-			// Control point scaling relative to distance
-			const controlScale = Math.min(120, Math.max(40, minDistance * 0.4));
+			// Smarter control point offset calculation
+			let cp1x = x1;
+			let cp1y = y1;
+			let cp2x = x2;
+			let cp2y = y2;
 
-			const cp1x = x1 + bestSrc.dx * controlScale;
-			const cp1y = y1 + bestSrc.dy * controlScale;
-			const cp2x = x2 + bestTarget.dx * controlScale;
-			const cp2y = y2 + bestTarget.dy * controlScale;
+			const dist = Math.hypot(x2 - x1, y2 - y1);
+			const scale = Math.min(100, Math.max(30, dist * 0.35));
+
+			// Project control point 1
+			cp1x += bestSrc.dx * scale;
+			cp1y += bestSrc.dy * scale;
+
+			// Project control point 2
+			cp2x += bestTarget.dx * scale;
+			cp2y += bestTarget.dy * scale;
+
+			// Adjust orthogonal connections for smoother sweeps
+			if (bestSrc.dx !== 0 && bestTarget.dy !== 0) {
+				cp1x = x1 + bestSrc.dx * Math.abs(x2 - x1) * 0.5;
+				cp2y = y2 + bestTarget.dy * Math.abs(y2 - y1) * 0.5;
+			} else if (bestSrc.dy !== 0 && bestTarget.dx !== 0) {
+				cp1y = y1 + bestSrc.dy * Math.abs(y2 - y1) * 0.5;
+				cp2x = x2 + bestTarget.dx * Math.abs(x2 - x1) * 0.5;
+			}
 
 			const pathData = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
 
