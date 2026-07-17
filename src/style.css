@@ -120,7 +120,7 @@ body {
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  height: calc(100% - 48px);
   background-color: #fafafb;
   background-image: radial-gradient(rgba(37, 99, 235, 0.12) 1.5px, transparent 1.5px);
   background-size: 20px 20px;
@@ -304,4 +304,141 @@ input.calc-error {
     transform: translateY(0);
   }
 }
+
+/* Multiboard Tabs Footer styling */
+.board-tabs-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 48px;
+  background: #ffffff;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  padding: 0 1.25rem;
+  gap: 0.5rem;
+  z-index: 100;
+}
+
+.boards-list {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+  padding-right: 1rem;
+}
+
+.boards-list::-webkit-scrollbar {
+  display: none; /* Hide tab scrollbar for maximum minimalism */
+}
+
+.board-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-sm);
+  background: #fafafb;
+  border: 1px solid var(--border-light);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  max-width: 160px;
+  flex-shrink: 0;
+  height: 28px;
+}
+
+.board-tab.active {
+  background: var(--accent-bg);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.board-tab-name-span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-tab-name-input {
+  border: none !important;
+  background: transparent !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  color: inherit !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: fit-content;
+  max-width: 100px;
+  height: 100%;
+  cursor: text;
+}
+
+.board-tab-name-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-bottom: 1px dashed var(--border-focus) !important;
+}
+
+.btn-tab-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.15s ease;
+  padding: 1px;
+}
+
+.btn-tab-close svg {
+  stroke: var(--text-muted);
+}
+
+.btn-tab-close:hover {
+  opacity: 1;
+}
+
+.btn-tab-close:hover svg {
+  stroke: var(--danger-text);
+}
+
+/* Minimal board add tab action */
+.btn-add-board {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafb;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.btn-add-board svg {
+  stroke: var(--text-secondary);
+}
+
+.btn-add-board:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent-primary);
+}
+
+.btn-add-board:hover svg {
+  stroke: var(--accent-primary);
+}
+
 

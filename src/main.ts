@@ -10,14 +10,38 @@ interface Variable {
   y: number;       // absolute Y position on canvas
 }
 
-// Initial state - Staggered grid nodes on canvas
-let activeVariables: Variable[] = [
-  { id: 'A', label: 'Base Project Cost', formula: '500', value: 500, hasError: false, x: 20, y: 20 },
-  { id: 'B', label: 'Hourly Rate', formula: '75', value: 75, hasError: false, x: 20, y: 120 },
-  { id: 'C', label: 'Estimated Hours', formula: '40', value: 40, hasError: false, x: 20, y: 220 },
-  { id: 'D', label: 'Discount Percentage', formula: '10', value: 10, hasError: false, x: 20, y: 320 },
-  { id: 'E', label: 'Total Cost', formula: 'A + (B * C) * (1 - D / 100)', value: 3200, hasError: false, x: 280, y: 20 }
+interface Board {
+  id: string;
+  name: string;
+  variables: Variable[];
+}
+
+// Initial default boards data
+let boards: Board[] = [
+  {
+    id: 'pricing',
+    name: 'Pricing Estimator',
+    variables: [
+      { id: 'A', label: 'Base Project Cost', formula: '500', value: 500, hasError: false, x: 20, y: 20 },
+      { id: 'B', label: 'Hourly Rate', formula: '75', value: 75, hasError: false, x: 20, y: 120 },
+      { id: 'C', label: 'Estimated Hours', formula: '40', value: 40, hasError: false, x: 20, y: 220 },
+      { id: 'D', label: 'Discount Percentage', formula: '10', value: 10, hasError: false, x: 20, y: 320 },
+      { id: 'E', label: 'Total Cost', formula: 'A + (B * C) * (1 - D / 100)', value: 3200, hasError: false, x: 280, y: 20 }
+    ]
+  },
+  {
+    id: 'split',
+    name: 'Dinner Splitter',
+    variables: [
+      { id: 'A', label: 'Total Dinner Bill', formula: '120', value: 120, hasError: false, x: 20, y: 20 },
+      { id: 'B', label: 'Number of Friends', formula: '4', value: 4, hasError: false, x: 20, y: 120 },
+      { id: 'C', label: 'Tip Percentage', formula: '15', value: 15, hasError: false, x: 20, y: 220 },
+      { id: 'D', label: 'Cost Per Friend', formula: '(A * (1 + C / 100)) / B', value: 34.5, hasError: false, x: 280, y: 20 }
+    ]
+  }
 ];
+
+let activeBoardId = 'pricing';
 
 // Dragging tracking state
 let activeDragId: string | null = null;
@@ -29,12 +53,21 @@ let startCardY = 0;
 // DOM Selectors
 const inputsContainer = document.getElementById('inputs-container') as HTMLDivElement;
 const addInputBtn = document.getElementById('add-input-btn') as HTMLButtonElement;
+const boardsList = document.getElementById('boards-list') as HTMLDivElement;
+const addBoardBtn = document.getElementById('add-board-btn') as HTMLButtonElement;
 
 // Create global tooltip element
 const tooltipEl = document.createElement('div');
 tooltipEl.id = 'app-tooltip';
 document.body.appendChild(tooltipEl);
 let activeTooltipTarget: HTMLElement | null = null;
+
+// Helper to get active board reference
+function getActiveBoard(): Board {
+  const b = boards.find(x => x.id === activeBoardId);
+  if (b) return b;
+  return boards[0];
+}
 
 // Helper to determine if a formula is a simple number
 function isStaticNumber(formula: string): boolean {
@@ -53,10 +86,11 @@ function formatDisplayValue(val: number): string {
   return formatted;
 }
 
-// Helper to generate next sequential Variable ID
+// Helper to generate next sequential Variable ID for active board
 function getNextVariableId(): string {
+  const activeBoard = getActiveBoard();
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const existingIds = activeVariables.map((v) => v.id);
+  const existingIds = activeBoard.variables.map((v) => v.id);
 
   for (let i = 0; i < alphabet.length; i++) {
     if (!existingIds.includes(alphabet[i])) {
@@ -76,8 +110,9 @@ function getNextVariableId(): string {
   }
 }
 
-// Safe equation evaluator
+// Safe equation evaluator for active board
 function evaluateAll() {
+  const activeBoard = getActiveBoard();
   const values: Record<string, number> = {};
   const errorVars = new Set<string>();
 
@@ -91,7 +126,7 @@ function evaluateAll() {
       return values[id];
     }
 
-    const v = activeVariables.find((x) => x.id === id);
+    const v = activeBoard.variables.find((x) => x.id === id);
     if (!v) return 0;
 
     const formulaStr = v.formula.trim();
@@ -113,7 +148,7 @@ function evaluateAll() {
 
       // Scan referenced variables
       const referenced: string[] = [];
-      activeVariables.forEach((x) => {
+      activeBoard.variables.forEach((x) => {
         if (x.id !== id && new RegExp(`\\b${x.id}\\b`).test(formulaStr)) {
           referenced.push(x.id);
         }
@@ -149,7 +184,7 @@ function evaluateAll() {
   }
 
   // Resolve everyone
-  activeVariables.forEach((v) => {
+  activeBoard.variables.forEach((v) => {
     try {
       resolve(v.id, new Set());
     } catch (_e) {
@@ -158,7 +193,7 @@ function evaluateAll() {
   });
 
   // Mark all dependencies recursively failing if root fails
-  activeVariables.forEach((v) => {
+  activeBoard.variables.forEach((v) => {
     if (errorVars.has(v.id)) {
       v.hasError = true;
     }
@@ -167,7 +202,8 @@ function evaluateAll() {
 
 // Reactively update input values of unchecked/blurred variables
 function updateInputsDisplay() {
-  activeVariables.forEach((v) => {
+  const activeBoard = getActiveBoard();
+  activeBoard.variables.forEach((v) => {
     const inputEl = document.querySelector(`.var-value-input[data-id="${v.id}"]`) as HTMLInputElement;
     if (inputEl && document.activeElement !== inputEl) {
       inputEl.type = 'text';
@@ -186,26 +222,26 @@ function updateInputsDisplay() {
 // Auto size active input depending on text length
 function autoSizeInput(inputEl: HTMLInputElement) {
   const length = inputEl.value.length;
-  // Monospace font character spacing is around 8.5px at font-size 0.9rem
-  // Default inner width is 214px, so widen if requirements exceed it
   const calculatedWidth = Math.max(214, (length + 4) * 9.5);
   inputEl.style.width = `${calculatedWidth}px`;
 }
 
 // Find first vacant position (scanning vertically within visible bounds, then shifting horizontally, and finally going deeper)
 function findVacantPosition(): { x: number; y: number } {
+  const activeBoard = getActiveBoard();
   const cardWidth = 240;
   const cardHeight = 80;
   
   const containerWidth = inputsContainer.clientWidth || window.innerWidth || 800;
-  const containerHeight = inputsContainer.clientHeight || window.innerHeight || 600;
+  // Subtract footer tab bar height (48px) from clientHeight measurements
+  const containerHeight = (inputsContainer.clientHeight || window.innerHeight || 600) - 48;
 
   // Phase 1: Scan vertically down column 1, then column 2, etc. (strictly inside visible screen space)
   for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
     for (let y = 20; y < containerHeight - cardHeight; y += 100) {
-      const overlaps = activeVariables.some((v) => {
+      const overlaps = activeBoard.variables.some((v) => {
         return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
-                 y + cardHeight <= v.y || y + cardHeight <= v.y);
+                 y + cardHeight <= v.y || v.y + cardHeight <= y);
       });
       if (!overlaps) {
         return { x, y };
@@ -217,9 +253,9 @@ function findVacantPosition(): { x: number; y: number } {
   const startY = Math.max(20, Math.floor((containerHeight - cardHeight) / 100) * 100 + 20);
   for (let y = startY; y < 5000 - cardHeight; y += 100) {
     for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
-      const overlaps = activeVariables.some((v) => {
+      const overlaps = activeBoard.variables.some((v) => {
         return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
-                 y + cardHeight <= v.y || y + cardHeight <= v.y);
+                 y + cardHeight <= v.y || v.y + cardHeight <= y);
       });
       if (!overlaps) {
         return { x, y };
@@ -227,16 +263,16 @@ function findVacantPosition(): { x: number; y: number } {
     }
   }
   
-  // Absolute fallback
   return { x: 20, y: 20 };
 }
 
 // Add a single variable entry
 function addNewVariable() {
+  const activeBoard = getActiveBoard();
   const nextId = getNextVariableId();
   const pos = findVacantPosition();
 
-  activeVariables.push({
+  activeBoard.variables.push({
     id: nextId,
     label: `Variable ${nextId}`,
     formula: '10',
@@ -253,11 +289,11 @@ function addNewVariable() {
 
 // Delete variable card
 function deleteVariable(id: string) {
-  // Dismiss tooltip if it belongs to deleted element
+  const activeBoard = getActiveBoard();
   if (activeTooltipTarget && activeTooltipTarget.closest(`.variable-card[data-id="${id}"]`)) {
     hideTooltip();
   }
-  activeVariables = activeVariables.filter((v) => v.id !== id);
+  activeBoard.variables = activeBoard.variables.filter((v) => v.id !== id);
   renderVariables();
   evaluateAll();
   updateInputsDisplay();
@@ -265,13 +301,13 @@ function deleteVariable(id: string) {
 
 // Insert Variable ID at active caret
 function insertBadgeId(id: string) {
+  const activeBoard = getActiveBoard();
   const active = document.activeElement as HTMLInputElement | null;
   if (active && active.classList.contains('var-value-input')) {
     const varId = active.getAttribute('data-id');
-    const variable = activeVariables.find((v) => v.id === varId);
+    const variable = activeBoard.variables.find((v) => v.id === varId);
     if (!variable) return;
 
-    // Reject self-reference shortcut insertion
     if (variable.id === id) return;
 
     const start = active.selectionStart ?? active.value.length;
@@ -281,7 +317,6 @@ function insertBadgeId(id: string) {
     active.value = oldVal.substring(0, start) + id + oldVal.substring(end);
     variable.formula = active.value;
     
-    // Position cursor right after inserted text
     const newPos = start + id.length;
     active.setSelectionRange(newPos, newPos);
 
@@ -293,9 +328,10 @@ function insertBadgeId(id: string) {
 
 // Output HTML rendering of variable rows
 function renderVariables() {
+  const activeBoard = getActiveBoard();
   inputsContainer.innerHTML = '';
 
-  activeVariables.forEach((variable) => {
+  activeBoard.variables.forEach((variable) => {
     const card = document.createElement('div');
     card.className = 'variable-card';
     card.setAttribute('data-id', variable.id);
@@ -344,12 +380,10 @@ function renderVariables() {
       card.style.zIndex = '50';
     });
 
-    // React to labels
     labelInput.addEventListener('input', () => {
       variable.label = labelInput.value;
     });
 
-    // React to badge clicks on mousedown to prevent input focus loss (blur)
     badgeBtn.addEventListener('mousedown', (e) => {
       const active = document.activeElement;
       if (active && active.classList.contains('var-value-input')) {
@@ -358,18 +392,14 @@ function renderVariables() {
       }
     });
 
-    // Value input events
     valInput.addEventListener('focus', () => {
       valInput.type = 'text';
       valInput.value = variable.formula;
       valInput.classList.remove('calc-error');
-      
-      // Auto check sizing
       autoSizeInput(valInput);
     });
 
     valInput.addEventListener('blur', () => {
-      // Revert size back to standard wrapper width
       valInput.style.width = '';
       evaluateAll();
       updateInputsDisplay();
@@ -425,7 +455,8 @@ function renderVariables() {
 window.addEventListener('mousemove', (e) => {
   if (!activeDragId) return;
 
-  const variable = activeVariables.find((v) => v.id === activeDragId);
+  const activeBoard = getActiveBoard();
+  const variable = activeBoard.variables.find((v) => v.id === activeDragId);
   const card = document.querySelector(`.variable-card[data-id="${activeDragId}"]`) as HTMLDivElement;
   if (!variable || !card) return;
 
@@ -490,14 +521,12 @@ function repositionTooltip() {
   const tooltipHeight = tooltipEl.offsetHeight;
 
   let left = rect.left + rect.width / 2 - tooltipWidth / 2;
-  let top = rect.top - tooltipHeight - 6; // 6px offset above
+  let top = rect.top - tooltipHeight - 6;
 
-  // Boundary collision constraints: Horizontal
   left = Math.max(6, Math.min(left, window.innerWidth - tooltipWidth - 6));
 
-  // Boundary collision constraints: Vertical
   if (top < 6) {
-    top = rect.bottom + 6; // flip below if clipping top edge
+    top = rect.bottom + 6;
   }
 
   tooltipEl.style.left = `${left}px`;
@@ -519,14 +548,117 @@ document.addEventListener('mouseout', (e) => {
   }
 });
 
-// Sync tooltip position on window/scroll changes
 window.addEventListener('scroll', repositionTooltip, { passive: true });
 inputsContainer.addEventListener('scroll', repositionTooltip, { passive: true });
 
-// Event Bindings
+// --- Multiboard Control Actions ---
+
+// Generate the bottom tabs bar
+function renderTabsList() {
+  boardsList.innerHTML = '';
+
+  boards.forEach((board) => {
+    const tab = document.createElement('div');
+    tab.className = `board-tab ${board.id === activeBoardId ? 'active' : ''}`;
+    
+    // Switch active board on click
+    tab.addEventListener('click', (e) => {
+      // Don't shift target if clicking inline editor input or close button
+      const target = e.target as HTMLElement;
+      if (target.closest('.btn-tab-close') || target.tagName === 'INPUT') {
+        return;
+      }
+      activeBoardId = board.id;
+      renderTabsList();
+      renderVariables();
+      evaluateAll();
+      updateInputsDisplay();
+    });
+
+    // Double click to rename tab inline
+    tab.addEventListener('dblclick', () => {
+      const span = tab.querySelector('.board-tab-name-span') as HTMLSpanElement;
+      if (!span) return;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'board-tab-name-input';
+      input.value = board.name;
+
+      const saveName = () => {
+        board.name = input.value.trim() || 'Untitled Board';
+        renderTabsList();
+      };
+
+      input.addEventListener('blur', saveName);
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          input.blur();
+        }
+      });
+
+      span.replaceWith(input);
+      input.focus();
+      input.select();
+    });
+
+    tab.innerHTML = `
+      <span class="board-tab-name-span" title="Double click to rename">${board.name}</span>
+      <button class="btn-tab-close" data-tooltip="Close Board" aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    `;
+
+    const closeBtn = tab.querySelector('.btn-tab-close') as HTMLButtonElement;
+    closeBtn.addEventListener('click', () => {
+      if (boards.length <= 1) {
+        alert('You must keep at least one board!');
+        return;
+      }
+      
+      const confirmClose = confirm(`Are you sure you want to delete "${board.name}"?`);
+      if (confirmClose) {
+        boards = boards.filter(x => x.id !== board.id);
+        if (activeBoardId === board.id) {
+          activeBoardId = boards[0].id;
+        }
+        renderTabsList();
+        renderVariables();
+        evaluateAll();
+        updateInputsDisplay();
+      }
+    });
+
+    boardsList.appendChild(tab);
+  });
+}
+
+// Add a fresh empty board template
+function createNewBoard() {
+  const newId = `board-${Date.now()}`;
+  const newName = `Board ${boards.length + 1}`;
+  
+  boards.push({
+    id: newId,
+    name: newName,
+    variables: [
+      { id: 'A', label: 'Item 1', formula: '10', value: 10, hasError: false, x: 20, y: 20 }
+    ]
+  });
+
+  activeBoardId = newId;
+  renderTabsList();
+  renderVariables();
+  evaluateAll();
+  updateInputsDisplay();
+}
+
+// Bindings
 addInputBtn.addEventListener('click', () => addNewVariable());
+addBoardBtn.addEventListener('click', () => createNewBoard());
 
 // Initial run
 evaluateAll();
 renderVariables();
 updateInputsDisplay();
+renderTabsList();
