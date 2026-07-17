@@ -115,6 +115,39 @@ body {
 	stroke: var(--danger-text);
 }
 
+.btn-generate {
+	background: transparent;
+	color: var(--text-muted);
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	opacity: 0;
+	pointer-events: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.25rem;
+	height: 1.25rem;
+	margin-right: 0.25rem;
+}
+
+.btn-generate svg {
+	stroke: var(--text-muted);
+}
+
+.variable-card:hover .btn-generate {
+	opacity: 0.5;
+	pointer-events: auto;
+}
+
+.btn-generate:hover {
+	opacity: 1 !important;
+}
+
+.btn-generate:hover svg {
+	stroke: var(--accent-primary);
+}
+
 /* Snapping Blueprint Grid Canvas Layout */
 .inputs-container {
 	position: absolute;

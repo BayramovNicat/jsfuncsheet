@@ -175,6 +175,81 @@ export function addNewVariable(): void {
 	updateInputsDisplay();
 }
 
+function getNextVacantYInColumn(
+	variables: Variable[],
+	x: number,
+	startY: number,
+	cardHeight: number,
+): number {
+	let currentY = startY;
+	while (true) {
+		const overlaps = variables.some((v) => {
+			return !(
+				x + LAYOUT_CONFIG.CARD_WIDTH <= v.x ||
+				v.x + LAYOUT_CONFIG.CARD_WIDTH <= x ||
+				currentY + cardHeight <= v.y ||
+				v.y + cardHeight <= currentY
+			);
+		});
+		if (!overlaps) {
+			return currentY;
+		}
+		currentY += LAYOUT_CONFIG.ROW_PITCH;
+	}
+}
+
+export function generateObjectTree(variable: Variable): void {
+	if (variable.value === null || typeof variable.value !== "object") return;
+
+	const keys = Object.keys(variable.value);
+	if (keys.length === 0) return;
+
+	const activeBoard = getActiveBoard();
+	const cardHeight = LAYOUT_CONFIG.CARD_HEIGHT;
+	const isArr = Array.isArray(variable.value);
+
+	let currentY = variable.y;
+	for (let i = 0; i < keys.length; i++) {
+		const key = keys[i];
+		const nextId = generateNextId();
+
+		let accessFormula: string;
+		if (isArr) {
+			accessFormula = `${variable.id}[${key}]`;
+		} else if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key)) {
+			accessFormula = `${variable.id}.${key}`;
+		} else {
+			const escapedKey = key.replace(/"/g, '\\"');
+			accessFormula = `${variable.id}["${escapedKey}"]`;
+		}
+
+		const x = variable.x + LAYOUT_CONFIG.COL_PITCH;
+		const y = getNextVacantYInColumn(
+			activeBoard.variables,
+			x,
+			currentY,
+			cardHeight,
+		);
+
+		const newVar: Variable = {
+			id: nextId,
+			label: key,
+			formula: accessFormula,
+			value: 0,
+			hasError: false,
+			x,
+			y,
+		};
+
+		activeBoard.variables.push(newVar);
+		currentY = y + LAYOUT_CONFIG.ROW_PITCH;
+	}
+
+	evaluateAllVariables(activeBoard.variables);
+	renderVariables();
+	updateInputsDisplay();
+}
+
 // Delete variable card State mutation
 export function deleteVariable(id: string): void {
 	const activeBoard = getActiveBoard();
@@ -266,9 +341,9 @@ function bindVariableCardEvents(
 		if (
 			target.tagName === "INPUT" ||
 			target.tagName === "TEXTAREA" ||
-			target.classList.contains("btn-delete") ||
-			target.tagName === "svg" ||
-			target.tagName === "path"
+			target.closest(".btn-delete") ||
+			target.closest(".btn-generate") ||
+			target.closest(".variable-badge")
 		) {
 			return;
 		}
@@ -613,6 +688,13 @@ function bindVariableCardEvents(
 
 	deleteBtn.addEventListener("click", () => deleteVariable(variable.id));
 
+	const generateBtn = card.querySelector(
+		".btn-generate",
+	) as HTMLButtonElement | null;
+	if (generateBtn) {
+		generateBtn.addEventListener("click", () => generateObjectTree(variable));
+	}
+
 	card.addEventListener("mouseenter", () => {
 		const lines = document.querySelectorAll(
 			`#connections-svg .connection-line.src-${variable.id}, #connections-svg .connection-line.target-${variable.id}`,
@@ -661,6 +743,9 @@ export function renderVariables(): void {
 			? "Error"
 			: formatDisplayValue(variable.value);
 
+		const isObject =
+			variable.value !== null && typeof variable.value === "object";
+
 		const errAttr = variable.hasError
 			? ` data-tooltip="⚠️ ${variable.error || "Evaluation error"}" class="var-value-input calc-error"`
 			: ' class="var-value-input"';
@@ -673,6 +758,15 @@ export function renderVariables(): void {
               <span class="variable-badge" data-badge-id="${variable.id}" data-tooltip="Insert ${variable.id}">${variable.id}</span>
               <span class="var-label-span">${variable.label}</span>
             </div>
+            ${
+							isObject
+								? `
+            <button class="btn-generate" data-tooltip="Generate Object Tree" aria-label="Generate">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>
+            </button>
+            `
+								: ""
+						}
             <button class="btn-delete" data-tooltip="Delete Variable" aria-label="Delete">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
             </button>
@@ -902,7 +996,10 @@ export function drawConnections(): void {
 
 	let defs = svg.querySelector("defs");
 	if (!defs) {
-		const newDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+		const newDefs = document.createElementNS(
+			"http://www.w3.org/2000/svg",
+			"defs",
+		);
 		colors.forEach((color, idx) => {
 			const marker = document.createElementNS(
 				"http://www.w3.org/2000/svg",
@@ -916,7 +1013,10 @@ export function drawConnections(): void {
 			marker.setAttribute("markerHeight", "6");
 			marker.setAttribute("orient", "auto-start-reverse");
 
-			const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+			const path = document.createElementNS(
+				"http://www.w3.org/2000/svg",
+				"path",
+			);
 			path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
 			path.setAttribute("fill", color);
 			marker.appendChild(path);
@@ -1066,7 +1166,10 @@ export function drawConnections(): void {
 				path.setAttribute("stroke-width", "2");
 				path.setAttribute("stroke-linecap", "round");
 				path.setAttribute("opacity", "0.35");
-				path.setAttribute("class", `connection-line src-${refId} target-${v.id}`);
+				path.setAttribute(
+					"class",
+					`connection-line src-${refId} target-${v.id}`,
+				);
 				svg.appendChild(path);
 			}
 
