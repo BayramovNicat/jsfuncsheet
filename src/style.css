@@ -150,6 +150,7 @@ body {
 .variable-card:hover {
   border-color: var(--text-muted);
   box-shadow: var(--shadow-md);
+  z-index: 10;
 }
 
 .variable-card-row {
@@ -274,3 +275,33 @@ input.calc-error {
   outline: 1px solid var(--border-light) !important;
   cursor: text;
 }
+
+/* Dynamic Global Tooltip */
+#app-tooltip {
+  position: fixed;
+  display: none;
+  background: var(--text-primary);
+  color: var(--bg-app);
+  padding: 0.2rem 0.45rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10000;
+  box-shadow: var(--shadow-md);
+  opacity: 0.95;
+  animation: tooltip-fade 0.1s ease-out;
+}
+
+@keyframes tooltip-fade {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 0.95;
+    transform: translateY(0);
+  }
+}
+

@@ -30,6 +30,12 @@ let startCardY = 0;
 const inputsContainer = document.getElementById('inputs-container') as HTMLDivElement;
 const addInputBtn = document.getElementById('add-input-btn') as HTMLButtonElement;
 
+// Create global tooltip element
+const tooltipEl = document.createElement('div');
+tooltipEl.id = 'app-tooltip';
+document.body.appendChild(tooltipEl);
+let activeTooltipTarget: HTMLElement | null = null;
+
 // Helper to determine if a formula is a simple number
 function isStaticNumber(formula: string): boolean {
   return /^-?\d+(\.\d+)?$/.test(formula.trim());
@@ -199,7 +205,7 @@ function findVacantPosition(): { x: number; y: number } {
     for (let y = 20; y < containerHeight - cardHeight; y += 100) {
       const overlaps = activeVariables.some((v) => {
         return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
-                 y + cardHeight <= v.y || v.y + cardHeight <= y);
+                 y + cardHeight <= v.y || y + cardHeight <= v.y);
       });
       if (!overlaps) {
         return { x, y };
@@ -213,7 +219,7 @@ function findVacantPosition(): { x: number; y: number } {
     for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
       const overlaps = activeVariables.some((v) => {
         return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
-                 y + cardHeight <= v.y || v.y + cardHeight <= y);
+                 y + cardHeight <= v.y || y + cardHeight <= v.y);
       });
       if (!overlaps) {
         return { x, y };
@@ -247,6 +253,10 @@ function addNewVariable() {
 
 // Delete variable card
 function deleteVariable(id: string) {
+  // Dismiss tooltip if it belongs to deleted element
+  if (activeTooltipTarget && activeTooltipTarget.closest(`.variable-card[data-id="${id}"]`)) {
+    hideTooltip();
+  }
   activeVariables = activeVariables.filter((v) => v.id !== id);
   renderVariables();
   evaluateAll();
@@ -300,10 +310,10 @@ function renderVariables() {
         <div class="field-group">
           <div class="var-title-row">
             <div class="var-title-left">
-              <span class="variable-badge" data-badge-id="${variable.id}" title="Click to insert into focused formula">${variable.id}</span>
+              <span class="variable-badge" data-badge-id="${variable.id}" data-tooltip="Insert ${variable.id}">${variable.id}</span>
               <input type="text" class="var-label-input" value="${variable.label}" title="Click to edit label name" placeholder="Label text">
             </div>
-            <button class="btn-delete" title="Remove Variable" aria-label="Delete">
+            <button class="btn-delete" data-tooltip="Delete Variable" aria-label="Delete">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
             </button>
           </div>
@@ -454,6 +464,64 @@ window.addEventListener('mouseup', () => {
     activeDragId = null;
   }
 });
+
+// Tooltip positioning manager
+function showTooltip(target: HTMLElement) {
+  const text = target.getAttribute('data-tooltip');
+  if (!text) return;
+
+  tooltipEl.textContent = text;
+  tooltipEl.style.display = 'block';
+  activeTooltipTarget = target;
+
+  repositionTooltip();
+}
+
+function hideTooltip() {
+  tooltipEl.style.display = 'none';
+  activeTooltipTarget = null;
+}
+
+function repositionTooltip() {
+  if (!activeTooltipTarget) return;
+
+  const rect = activeTooltipTarget.getBoundingClientRect();
+  const tooltipWidth = tooltipEl.offsetWidth;
+  const tooltipHeight = tooltipEl.offsetHeight;
+
+  let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+  let top = rect.top - tooltipHeight - 6; // 6px offset above
+
+  // Boundary collision constraints: Horizontal
+  left = Math.max(6, Math.min(left, window.innerWidth - tooltipWidth - 6));
+
+  // Boundary collision constraints: Vertical
+  if (top < 6) {
+    top = rect.bottom + 6; // flip below if clipping top edge
+  }
+
+  tooltipEl.style.left = `${left}px`;
+  tooltipEl.style.top = `${top}px`;
+}
+
+// Global delegated mouseover listener
+document.addEventListener('mouseover', (e) => {
+  const target = (e.target as HTMLElement).closest('[data-tooltip]') as HTMLElement;
+  if (target) {
+    showTooltip(target);
+  }
+});
+
+document.addEventListener('mouseout', (e) => {
+  const target = (e.target as HTMLElement).closest('[data-tooltip]') as HTMLElement;
+  if (target && target === activeTooltipTarget) {
+    hideTooltip();
+  }
+});
+
+// Sync tooltip position on window/scroll changes
+window.addEventListener('scroll', repositionTooltip, { passive: true });
+inputsContainer.addEventListener('scroll', repositionTooltip, { passive: true });
 
 // Event Bindings
 addInputBtn.addEventListener('click', () => addNewVariable());
