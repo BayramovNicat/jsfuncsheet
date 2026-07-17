@@ -1,5 +1,5 @@
-import type { Variable } from "./types";
 import { saveStateToLocalStorage } from "./state";
+import type { Variable } from "./types";
 
 const STATIC_NUMBER_REGEX = /^-?\d+(\.\d+)?$/;
 

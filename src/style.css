@@ -82,10 +82,6 @@ body {
 	transform: scale(0.95);
 }
 
-#add-input-btn svg {
-	stroke: white;
-}
-
 /* Delete button hover states */
 .btn-delete {
 	background: transparent;
@@ -533,6 +529,10 @@ textarea.calc-error:focus + .value-highlight-overlay {
 
 .btn-add-board:hover svg {
 	stroke: var(--accent-primary);
+}
+
+#add-input-btn svg {
+	stroke: white;
 }
 
 /* Card Reference Highlights - Badge colors too! */

@@ -1,11 +1,11 @@
 import { findVacantPosition } from "./canvas";
+import { syntaxHighlight } from "./highlight";
 import {
 	compileFormula,
 	evaluateAllVariables,
 	formatDisplayValue,
 	isStaticNumber,
 } from "./math";
-import { syntaxHighlight } from "./highlight";
 import {
 	clearCardHighlights,
 	generateNextId,
