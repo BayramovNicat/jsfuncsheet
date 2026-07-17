@@ -12,6 +12,7 @@ import {
 	getActiveBoard,
 	getActiveBoardId,
 	getBoards,
+	getShowConnections,
 	saveStateToLocalStorage,
 	setActiveBoardId,
 	setBoards,
@@ -785,6 +786,18 @@ export function renderTabsList(): void {
 
 		boardsList.appendChild(tab);
 	});
+
+	// Update toggle-lines active state look
+	const toggleBtn = document.getElementById(
+		"toggle-lines-btn",
+	) as HTMLButtonElement | null;
+	if (toggleBtn) {
+		if (getShowConnections()) {
+			toggleBtn.classList.remove("inactive");
+		} else {
+			toggleBtn.classList.add("inactive");
+		}
+	}
 }
 
 export function createNewBoard(): void {
@@ -829,6 +842,10 @@ export function drawConnections(): void {
 	} else {
 		svg.innerHTML = "";
 	}
+
+	const show = getShowConnections();
+	svg.style.display = show ? "block" : "none";
+	if (!show) return;
 
 	let maxW = inputsContainer.clientWidth;
 	let maxH = inputsContainer.clientHeight;

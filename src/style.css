@@ -516,6 +516,7 @@ textarea.calc-error:focus + .value-highlight-overlay {
 	border: 1px solid var(--border-light);
 	cursor: pointer;
 	box-shadow: none;
+	margin-left: 4px;
 }
 
 .btn-add-board svg {
@@ -535,7 +536,21 @@ textarea.calc-error:focus + .value-highlight-overlay {
 	stroke: white;
 }
 
-/* Card Reference Highlights - Badge colors too! */
+.btn-add-board.inactive {
+	opacity: 0.5;
+}
+
+.btn-add-board.inactive:hover {
+	opacity: 0.8;
+}
+
+.btn-add-board.inactive svg {
+	stroke: var(--text-secondary);
+}
+
+.btn-add-board.inactive:hover svg {
+	stroke: var(--accent-primary);
+}
 .variable-card.card-hl-1 {
 	border-color: #3b82f6 !important;
 	background-color: #eff6ff !important;

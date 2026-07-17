@@ -1,7 +1,12 @@
 import "./style.css";
 import { calculateDraggedPosition } from "./canvas";
 import { evaluateAllVariables } from "./math";
-import { getActiveBoard, saveStateToLocalStorage } from "./state";
+import {
+	getActiveBoard,
+	getShowConnections,
+	saveStateToLocalStorage,
+	setShowConnections,
+} from "./state";
 import {
 	getActiveTooltipTarget,
 	hideTooltip,
@@ -131,6 +136,15 @@ document.addEventListener("mouseout", (e) => {
 // Event Bindings config
 addInputBtn.addEventListener("click", () => addNewVariable());
 addBoardBtn.addEventListener("click", () => createNewBoard());
+
+const toggleLinesBtn = document.getElementById(
+	"toggle-lines-btn",
+) as HTMLButtonElement | null;
+toggleLinesBtn?.addEventListener("click", () => {
+	setShowConnections(!getShowConnections());
+	drawConnections();
+	renderTabsList();
+});
 
 // Initialize elements and bootstrap render
 initializeTooltip();

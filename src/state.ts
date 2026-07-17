@@ -110,15 +110,29 @@ let boards: Board[] = [
 ];
 
 let activeBoardId = "compound";
+let showConnections = true;
 
 export function getBoards(): Board[] {
 	return boards;
+}
+
+export function getShowConnections(): boolean {
+	return showConnections;
+}
+
+export function setShowConnections(show: boolean) {
+	showConnections = show;
+	saveStateToLocalStorage();
 }
 
 export function saveStateToLocalStorage() {
 	try {
 		localStorage.setItem("jsfuncsheet_boards", JSON.stringify(boards));
 		localStorage.setItem("jsfuncsheet_active_board_id", activeBoardId);
+		localStorage.setItem(
+			"jsfuncsheet_show_connections",
+			String(showConnections),
+		);
 	} catch (e) {
 		console.error("Failed to save state to localStorage", e);
 	}
@@ -128,6 +142,7 @@ export function loadStateFromLocalStorage() {
 	try {
 		let storedBoards = localStorage.getItem("jsfuncsheet_boards");
 		let storedActiveId = localStorage.getItem("jsfuncsheet_active_board_id");
+		const storedShow = localStorage.getItem("jsfuncsheet_show_connections");
 
 		// Fallback to old keys for backward compatibility
 		if (!storedBoards) {
@@ -142,6 +157,9 @@ export function loadStateFromLocalStorage() {
 		}
 		if (storedActiveId) {
 			activeBoardId = storedActiveId;
+		}
+		if (storedShow !== null) {
+			showConnections = storedShow === "true";
 		}
 	} catch (e) {
 		console.error("Failed to load state from localStorage", e);
