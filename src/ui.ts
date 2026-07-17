@@ -1,29 +1,23 @@
-import { LAYOUT_CONFIG } from './types';
+import { findVacantPosition } from "./canvas";
 import {
-  isStaticNumber,
-  formatDisplayValue,
-  compileFormula,
-  syntaxHighlight,
-  evaluateAllVariables
-} from './math';
+	compileFormula,
+	evaluateAllVariables,
+	formatDisplayValue,
+	isStaticNumber,
+	syntaxHighlight,
+} from "./math";
 import {
-  getBoards,
-  setBoards,
-  getActiveBoardId,
-  setActiveBoardId,
-  getActiveBoard,
-  generateNextId,
-  updateCardHighlights,
-  clearCardHighlights
-} from './state';
-import {
-  findVacantPosition
-} from './canvas';
-import {
-  showTooltip,
-  hideTooltip,
-  getActiveTooltipTarget
-} from './tooltip';
+	clearCardHighlights,
+	generateNextId,
+	getActiveBoard,
+	getActiveBoardId,
+	getBoards,
+	setActiveBoardId,
+	setBoards,
+	updateCardHighlights,
+} from "./state";
+import { getActiveTooltipTarget, hideTooltip, showTooltip } from "./tooltip";
+import { LAYOUT_CONFIG } from "./types";
 
 let activeDragId: string | null = null;
 let startMouseX = 0;
@@ -32,362 +26,410 @@ let startCardX = 0;
 let startCardY = 0;
 
 export function getActiveDragId(): string | null {
-  return activeDragId;
+	return activeDragId;
 }
 
 export function setActiveDragId(id: string | null) {
-  activeDragId = id;
+	activeDragId = id;
 }
 
-export function setDragCoordinates(mouseX: number, mouseY: number, cardX: number, cardY: number) {
-  startMouseX = mouseX;
-  startMouseY = mouseY;
-  startCardX = cardX;
-  startCardY = cardY;
+export function setDragCoordinates(
+	mouseX: number,
+	mouseY: number,
+	cardX: number,
+	cardY: number,
+) {
+	startMouseX = mouseX;
+	startMouseY = mouseY;
+	startCardX = cardX;
+	startCardY = cardY;
 }
 
 export function getDragStartMouse() {
-  return { startMouseX, startMouseY };
+	return { startMouseX, startMouseY };
 }
 
 export function getDragStartCard() {
-  return { startCardX, startCardY };
+	return { startCardX, startCardY };
 }
 
 // Selectors helper
 let inputsContainer: HTMLDivElement;
 let boardsList: HTMLDivElement;
 
-export function initializeUiSelectors(inputs: HTMLDivElement, boards: HTMLDivElement) {
-  inputsContainer = inputs;
-  boardsList = boards;
+export function initializeUiSelectors(
+	inputs: HTMLDivElement,
+	boards: HTMLDivElement,
+) {
+	inputsContainer = inputs;
+	boardsList = boards;
 }
 
 // Updates the display value and errors of blurred inputs
 export function updateInputsDisplay(): void {
-  const activeBoard = getActiveBoard();
-  activeBoard.variables.forEach((v) => {
-    const inputEl = document.querySelector(`.var-value-input[data-id="${v.id}"]`) as HTMLTextAreaElement;
-    if (!inputEl || document.activeElement === inputEl) return;
+	const activeBoard = getActiveBoard();
+	activeBoard.variables.forEach((v) => {
+		const inputEl = document.querySelector(
+			`.var-value-input[data-id="${v.id}"]`,
+		) as HTMLTextAreaElement;
+		if (!inputEl || document.activeElement === inputEl) return;
 
-    if (v.hasError) {
-      inputEl.value = 'Error';
-      inputEl.classList.add('calc-error');
-    } else {
-      inputEl.value = formatDisplayValue(v.value);
-      inputEl.classList.remove('calc-error');
-    }
-  });
+		if (v.hasError) {
+			inputEl.value = "Error";
+			inputEl.classList.add("calc-error");
+		} else {
+			inputEl.value = formatDisplayValue(v.value);
+			inputEl.classList.remove("calc-error");
+		}
+	});
 }
 
 // Auto size textareas
 export function autoSizeTextarea(inputEl: HTMLTextAreaElement): void {
-  inputEl.style.height = 'auto';
-  const calculatedHeight = Math.max(
-    LAYOUT_CONFIG.CARD_HEIGHT - 36,
-    Math.min(inputEl.scrollHeight, LAYOUT_CONFIG.MAX_VAL_INPUT_HEIGHT)
-  );
-  inputEl.style.height = `${calculatedHeight}px`;
+	inputEl.style.height = "auto";
+	const calculatedHeight = Math.max(
+		LAYOUT_CONFIG.CARD_HEIGHT - 36,
+		Math.min(inputEl.scrollHeight, LAYOUT_CONFIG.MAX_VAL_INPUT_HEIGHT),
+	);
+	inputEl.style.height = `${calculatedHeight}px`;
 
-  const lines = inputEl.value.split('\n');
-  const maxLineLength = Math.max(...lines.map(line => line.length));
-  const calculatedWidth = Math.max(
-    LAYOUT_CONFIG.MIN_VAL_INPUT_WIDTH,
-    (maxLineLength + 4) * LAYOUT_CONFIG.CHAR_WIDTH
-  );
-  inputEl.style.width = `${calculatedWidth}px`;
+	const lines = inputEl.value.split("\n");
+	const maxLineLength = Math.max(...lines.map((line) => line.length));
+	const calculatedWidth = Math.max(
+		LAYOUT_CONFIG.MIN_VAL_INPUT_WIDTH,
+		(maxLineLength + 4) * LAYOUT_CONFIG.CHAR_WIDTH,
+	);
+	inputEl.style.width = `${calculatedWidth}px`;
 
-  const cardEl = inputEl.closest('.variable-card');
-  if (cardEl) {
-    const overlayEl = cardEl.querySelector('.value-highlight-overlay') as HTMLDivElement;
-    if (overlayEl) {
-      overlayEl.style.width = `${calculatedWidth}px`;
-      overlayEl.style.height = `${calculatedHeight}px`;
-    }
-  }
+	const cardEl = inputEl.closest(".variable-card");
+	if (cardEl) {
+		const overlayEl = cardEl.querySelector(
+			".value-highlight-overlay",
+		) as HTMLDivElement;
+		if (overlayEl) {
+			overlayEl.style.width = `${calculatedWidth}px`;
+			overlayEl.style.height = `${calculatedHeight}px`;
+		}
+	}
 }
 
 // Add a single variable entry
 export function addNewVariable(): void {
-  const activeBoard = getActiveBoard();
-  const nextId = generateNextId();
-  const pos = findVacantPosition(
-    activeBoard.variables,
-    inputsContainer.clientWidth,
-    inputsContainer.clientHeight
-  );
+	const activeBoard = getActiveBoard();
+	const nextId = generateNextId();
+	const pos = findVacantPosition(
+		activeBoard.variables,
+		inputsContainer.clientWidth,
+		inputsContainer.clientHeight,
+	);
 
-  activeBoard.variables.push({
-    id: nextId,
-    label: `Variable ${nextId}`,
-    formula: '10',
-    value: 10,
-    hasError: false,
-    x: pos.x,
-    y: pos.y
-  });
+	activeBoard.variables.push({
+		id: nextId,
+		label: `Variable ${nextId}`,
+		formula: "10",
+		value: 10,
+		hasError: false,
+		x: pos.x,
+		y: pos.y,
+	});
 
-  renderVariables();
-  evaluateAllVariables(activeBoard.variables);
-  updateInputsDisplay();
+	renderVariables();
+	evaluateAllVariables(activeBoard.variables);
+	updateInputsDisplay();
 }
 
 // Delete variable card State mutation
 export function deleteVariable(id: string): void {
-  const activeBoard = getActiveBoard();
-  const activeTT = getActiveTooltipTarget();
-  
-  if (activeTT && activeTT.closest(`.variable-card[data-id="${id}"]`)) {
-    hideTooltip();
-  }
-  activeBoard.variables = activeBoard.variables.filter((v) => v.id !== id);
-  renderVariables();
-  evaluateAllVariables(activeBoard.variables);
-  updateInputsDisplay();
+	const activeBoard = getActiveBoard();
+	const activeTT = getActiveTooltipTarget();
+
+	if (activeTT && activeTT.closest(`.variable-card[data-id="${id}"]`)) {
+		hideTooltip();
+	}
+	activeBoard.variables = activeBoard.variables.filter((v) => v.id !== id);
+	renderVariables();
+	evaluateAllVariables(activeBoard.variables);
+	updateInputsDisplay();
 }
 
 // Insert Variable ID at active textarea caret
 export function insertBadgeId(id: string): void {
-  const activeBoard = getActiveBoard();
-  const active = document.activeElement as HTMLTextAreaElement | null;
-  if (!active || !active.classList.contains('var-value-input')) return;
+	const activeBoard = getActiveBoard();
+	const active = document.activeElement as HTMLTextAreaElement | null;
+	if (!active || !active.classList.contains("var-value-input")) return;
 
-  const varId = active.getAttribute('data-id');
-  const variable = activeBoard.variables.find((v) => v.id === varId);
-  if (!variable || variable.id === id) return;
+	const varId = active.getAttribute("data-id");
+	const variable = activeBoard.variables.find((v) => v.id === varId);
+	if (!variable || variable.id === id) return;
 
-  const start = active.selectionStart ?? active.value.length;
-  const end = active.selectionEnd ?? active.value.length;
-  const oldVal = active.value;
+	const start = active.selectionStart ?? active.value.length;
+	const end = active.selectionEnd ?? active.value.length;
+	const oldVal = active.value;
 
-  active.value = oldVal.substring(0, start) + id + oldVal.substring(end);
-  variable.formula = active.value;
-  
-  const newPos = start + id.length;
-  active.setSelectionRange(newPos, newPos);
+	active.value = oldVal.substring(0, start) + id + oldVal.substring(end);
+	variable.formula = active.value;
 
-  autoSizeTextarea(active);
-  
-  const cardEl = active.closest('.variable-card');
-  if (cardEl) {
-    const overlayEl = cardEl.querySelector('.value-highlight-overlay') as HTMLDivElement;
-    if (overlayEl) {
-      overlayEl.innerHTML = syntaxHighlight(active.value, variable.id, activeBoard.variables);
-      overlayEl.scrollLeft = active.scrollLeft;
-      overlayEl.scrollTop = active.scrollTop;
-    }
-  }
+	const newPos = start + id.length;
+	active.setSelectionRange(newPos, newPos);
 
-  updateCardHighlights(variable.id, active.value);
+	autoSizeTextarea(active);
 
-  const check = compileFormula(active.value, variable.id, activeBoard.variables);
-  if (check.error) {
-    active.setAttribute('data-tooltip', `⚠️ ${check.error}`);
-    active.classList.add('calc-error');
-    showTooltip(active);
-  } else {
-    active.removeAttribute('data-tooltip');
-    active.classList.remove('calc-error');
-    hideTooltip();
-  }
+	const cardEl = active.closest(".variable-card");
+	if (cardEl) {
+		const overlayEl = cardEl.querySelector(
+			".value-highlight-overlay",
+		) as HTMLDivElement;
+		if (overlayEl) {
+			overlayEl.innerHTML = syntaxHighlight(
+				active.value,
+				variable.id,
+				activeBoard.variables,
+			);
+			overlayEl.scrollLeft = active.scrollLeft;
+			overlayEl.scrollTop = active.scrollTop;
+		}
+	}
 
-  evaluateAllVariables(activeBoard.variables);
-  updateInputsDisplay();
+	updateCardHighlights(variable.id, active.value);
+
+	const check = compileFormula(
+		active.value,
+		variable.id,
+		activeBoard.variables,
+	);
+	if (check.error) {
+		active.setAttribute("data-tooltip", `⚠️ ${check.error}`);
+		active.classList.add("calc-error");
+		showTooltip(active);
+	} else {
+		active.removeAttribute("data-tooltip");
+		active.classList.remove("calc-error");
+		hideTooltip();
+	}
+
+	evaluateAllVariables(activeBoard.variables);
+	updateInputsDisplay();
 }
 
 // Separate listener hooks definition for variables (reduces nesting size in render)
 function bindVariableCardEvents(
-  card: HTMLDivElement,
-  variable: any,
-  activeBoard: any,
-  labelSpan: HTMLSpanElement,
-  valInput: HTMLTextAreaElement,
-  overlayEl: HTMLDivElement,
-  deleteBtn: HTMLButtonElement,
-  badgeBtn: HTMLDivElement
+	card: HTMLDivElement,
+	variable: any,
+	activeBoard: any,
+	labelSpan: HTMLSpanElement,
+	valInput: HTMLTextAreaElement,
+	overlayEl: HTMLDivElement,
+	deleteBtn: HTMLButtonElement,
+	badgeBtn: HTMLDivElement,
 ) {
-  // Drag handling
-  card.addEventListener('mousedown', (e) => {
-    const target = e.target as HTMLElement;
-    if (
-      target.tagName === 'INPUT' || 
-      target.tagName === 'TEXTAREA' || 
-      target.classList.contains('btn-delete') || 
-      target.tagName === 'svg' || 
-      target.tagName === 'path'
-    ) {
-      return;
-    }
-    
-    e.preventDefault();
-    activeDragId = variable.id;
-    startMouseX = e.clientX;
-    startMouseY = e.clientY;
-    startCardX = variable.x;
-    startCardY = variable.y;
-    card.style.zIndex = '50';
-  });
+	// Drag handling
+	card.addEventListener("mousedown", (e) => {
+		const target = e.target as HTMLElement;
+		if (
+			target.tagName === "INPUT" ||
+			target.tagName === "TEXTAREA" ||
+			target.classList.contains("btn-delete") ||
+			target.tagName === "svg" ||
+			target.tagName === "path"
+		) {
+			return;
+		}
 
-  // Rename label
-  labelSpan.addEventListener('dblclick', () => {
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'var-label-input';
-    input.value = variable.label;
+		e.preventDefault();
+		activeDragId = variable.id;
+		startMouseX = e.clientX;
+		startMouseY = e.clientY;
+		startCardX = variable.x;
+		startCardY = variable.y;
+		card.style.zIndex = "50";
+	});
 
-    const saveLabel = () => {
-      variable.label = input.value.trim() || `Variable ${variable.id}`;
-      renderVariables();
-      updateInputsDisplay();
-    };
+	// Rename label
+	labelSpan.addEventListener("dblclick", () => {
+		const input = document.createElement("input");
+		input.type = "text";
+		input.className = "var-label-input";
+		input.value = variable.label;
 
-    input.addEventListener('blur', saveLabel);
-    input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') {
-        input.blur();
-      }
-    });
+		const saveLabel = () => {
+			variable.label = input.value.trim() || `Variable ${variable.id}`;
+			renderVariables();
+			updateInputsDisplay();
+		};
 
-    labelSpan.replaceWith(input);
-    input.focus();
-    input.select();
-  });
+		input.addEventListener("blur", saveLabel);
+		input.addEventListener("keydown", (ev) => {
+			if (ev.key === "Enter") {
+				input.blur();
+			}
+		});
 
-  badgeBtn.addEventListener('mousedown', (e) => {
-    const active = document.activeElement;
-    if (active && active.classList.contains('var-value-input')) {
-      e.preventDefault();
-      insertBadgeId(variable.id);
-    }
-  });
+		labelSpan.replaceWith(input);
+		input.focus();
+		input.select();
+	});
 
-  valInput.addEventListener('scroll', () => {
-    overlayEl.scrollLeft = valInput.scrollLeft;
-    overlayEl.scrollTop = valInput.scrollTop;
-  });
+	badgeBtn.addEventListener("mousedown", (e) => {
+		const active = document.activeElement;
+		if (active && active.classList.contains("var-value-input")) {
+			e.preventDefault();
+			insertBadgeId(variable.id);
+		}
+	});
 
-  valInput.addEventListener('focus', () => {
-    valInput.value = variable.formula;
-    valInput.classList.remove('calc-error');
-    autoSizeTextarea(valInput);
+	valInput.addEventListener("scroll", () => {
+		overlayEl.scrollLeft = valInput.scrollLeft;
+		overlayEl.scrollTop = valInput.scrollTop;
+	});
 
-    overlayEl.style.display = 'block';
-    overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
-    overlayEl.scrollLeft = valInput.scrollLeft;
-    overlayEl.scrollTop = valInput.scrollTop;
+	valInput.addEventListener("focus", () => {
+		valInput.value = variable.formula;
+		valInput.classList.remove("calc-error");
+		autoSizeTextarea(valInput);
 
-    updateCardHighlights(variable.id, valInput.value);
+		overlayEl.style.display = "block";
+		overlayEl.innerHTML = syntaxHighlight(
+			valInput.value,
+			variable.id,
+			activeBoard.variables,
+		);
+		overlayEl.scrollLeft = valInput.scrollLeft;
+		overlayEl.scrollTop = valInput.scrollTop;
 
-    const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
-    if (check.error) {
-      valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
-      valInput.classList.add('calc-error');
-      showTooltip(valInput);
-    } else {
-      valInput.removeAttribute('data-tooltip');
-      valInput.classList.remove('calc-error');
-    }
-  });
+		updateCardHighlights(variable.id, valInput.value);
 
-  valInput.addEventListener('blur', () => {
-    valInput.style.width = '';
-    valInput.style.height = '';
-    valInput.removeAttribute('data-tooltip');
-    overlayEl.style.width = '';
-    overlayEl.style.height = '';
-    overlayEl.style.display = 'none';
-    clearCardHighlights();
-    hideTooltip();
-    
-    evaluateAllVariables(activeBoard.variables);
-    updateInputsDisplay();
-  });
+		const check = compileFormula(
+			valInput.value,
+			variable.id,
+			activeBoard.variables,
+		);
+		if (check.error) {
+			valInput.setAttribute("data-tooltip", `⚠️ ${check.error}`);
+			valInput.classList.add("calc-error");
+			showTooltip(valInput);
+		} else {
+			valInput.removeAttribute("data-tooltip");
+			valInput.classList.remove("calc-error");
+		}
+	});
 
-  valInput.addEventListener('input', () => {
-    variable.formula = valInput.value;
-    autoSizeTextarea(valInput);
+	valInput.addEventListener("blur", () => {
+		valInput.style.width = "";
+		valInput.style.height = "";
+		valInput.removeAttribute("data-tooltip");
+		overlayEl.style.width = "";
+		overlayEl.style.height = "";
+		overlayEl.style.display = "none";
+		clearCardHighlights();
+		hideTooltip();
 
-    overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
-    overlayEl.scrollLeft = valInput.scrollLeft;
-    overlayEl.scrollTop = valInput.scrollTop;
+		evaluateAllVariables(activeBoard.variables);
+		updateInputsDisplay();
+	});
 
-    updateCardHighlights(variable.id, valInput.value);
+	valInput.addEventListener("input", () => {
+		variable.formula = valInput.value;
+		autoSizeTextarea(valInput);
 
-    const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
-    if (check.error) {
-      valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
-      valInput.classList.add('calc-error');
-      showTooltip(valInput);
-    } else {
-      valInput.removeAttribute('data-tooltip');
-      valInput.classList.remove('calc-error');
-      hideTooltip();
-    }
-    
-    evaluateAllVariables(activeBoard.variables);
-    updateInputsDisplay();
-  });
+		overlayEl.innerHTML = syntaxHighlight(
+			valInput.value,
+			variable.id,
+			activeBoard.variables,
+		);
+		overlayEl.scrollLeft = valInput.scrollLeft;
+		overlayEl.scrollTop = valInput.scrollTop;
 
-  valInput.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-      const isNum = isStaticNumber(valInput.value);
-      if (isNum) {
-        e.preventDefault();
-        let val = parseFloat(valInput.value);
-        if (isNaN(val)) val = 0;
-        
-        const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
-        val += e.key === 'ArrowUp' ? step : -step;
-        
-        valInput.value = parseFloat(val.toFixed(4)).toString();
-        variable.formula = valInput.value;
-        
-        autoSizeTextarea(valInput);
-        overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
-        overlayEl.scrollLeft = valInput.scrollLeft;
-        overlayEl.scrollTop = valInput.scrollTop;
-        updateCardHighlights(variable.id, valInput.value);
+		updateCardHighlights(variable.id, valInput.value);
 
-        const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
-        if (check.error) {
-          valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
-          valInput.classList.add('calc-error');
-          showTooltip(valInput);
-        } else {
-          valInput.removeAttribute('data-tooltip');
-          valInput.classList.remove('calc-error');
-          hideTooltip();
-        }
+		const check = compileFormula(
+			valInput.value,
+			variable.id,
+			activeBoard.variables,
+		);
+		if (check.error) {
+			valInput.setAttribute("data-tooltip", `⚠️ ${check.error}`);
+			valInput.classList.add("calc-error");
+			showTooltip(valInput);
+		} else {
+			valInput.removeAttribute("data-tooltip");
+			valInput.classList.remove("calc-error");
+			hideTooltip();
+		}
 
-        evaluateAllVariables(activeBoard.variables);
-        updateInputsDisplay();
-      }
-    } else if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      valInput.blur();
-    } else if (e.key === 'Escape') {
-      valInput.blur();
-    }
-  });
+		evaluateAllVariables(activeBoard.variables);
+		updateInputsDisplay();
+	});
 
-  deleteBtn.addEventListener('click', () => deleteVariable(variable.id));
+	valInput.addEventListener("keydown", (e) => {
+		if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+			const isNum = isStaticNumber(valInput.value);
+			if (isNum) {
+				e.preventDefault();
+				let val = parseFloat(valInput.value);
+				if (isNaN(val)) val = 0;
+
+				const step = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
+				val += e.key === "ArrowUp" ? step : -step;
+
+				valInput.value = parseFloat(val.toFixed(4)).toString();
+				variable.formula = valInput.value;
+
+				autoSizeTextarea(valInput);
+				overlayEl.innerHTML = syntaxHighlight(
+					valInput.value,
+					variable.id,
+					activeBoard.variables,
+				);
+				overlayEl.scrollLeft = valInput.scrollLeft;
+				overlayEl.scrollTop = valInput.scrollTop;
+				updateCardHighlights(variable.id, valInput.value);
+
+				const check = compileFormula(
+					valInput.value,
+					variable.id,
+					activeBoard.variables,
+				);
+				if (check.error) {
+					valInput.setAttribute("data-tooltip", `⚠️ ${check.error}`);
+					valInput.classList.add("calc-error");
+					showTooltip(valInput);
+				} else {
+					valInput.removeAttribute("data-tooltip");
+					valInput.classList.remove("calc-error");
+					hideTooltip();
+				}
+
+				evaluateAllVariables(activeBoard.variables);
+				updateInputsDisplay();
+			}
+		} else if (e.key === "Enter" && !e.shiftKey) {
+			e.preventDefault();
+			valInput.blur();
+		} else if (e.key === "Escape") {
+			valInput.blur();
+		}
+	});
+
+	deleteBtn.addEventListener("click", () => deleteVariable(variable.id));
 }
 
 // Render dynamic card entries
 export function renderVariables(): void {
-  const activeBoard = getActiveBoard();
-  inputsContainer.innerHTML = '';
+	const activeBoard = getActiveBoard();
+	inputsContainer.innerHTML = "";
 
-  activeBoard.variables.forEach((variable) => {
-    const card = document.createElement('div');
-    card.className = 'variable-card';
-    card.setAttribute('data-id', variable.id);
-    card.style.left = `${variable.x}px`;
-    card.style.top = `${variable.y}px`;
+	activeBoard.variables.forEach((variable) => {
+		const card = document.createElement("div");
+		card.className = "variable-card";
+		card.setAttribute("data-id", variable.id);
+		card.style.left = `${variable.x}px`;
+		card.style.top = `${variable.y}px`;
 
-    const displayVal = variable.hasError ? 'Error' : formatDisplayValue(variable.value);
+		const displayVal = variable.hasError
+			? "Error"
+			: formatDisplayValue(variable.value);
 
-    card.innerHTML = `
+		card.innerHTML = `
       <div class="variable-card-row">
         <div class="field-group">
           <div class="var-title-row">
@@ -407,121 +449,144 @@ export function renderVariables(): void {
       </div>
     `;
 
-    const labelSpan = card.querySelector('.var-label-span') as HTMLSpanElement;
-    const valInput = card.querySelector('.var-value-input') as HTMLTextAreaElement;
-    const overlayEl = card.querySelector('.value-highlight-overlay') as HTMLDivElement;
-    const deleteBtn = card.querySelector('.btn-delete') as HTMLButtonElement;
-    const badgeBtn = card.querySelector('.variable-badge') as HTMLDivElement;
+		const labelSpan = card.querySelector(".var-label-span") as HTMLSpanElement;
+		const valInput = card.querySelector(
+			".var-value-input",
+		) as HTMLTextAreaElement;
+		const overlayEl = card.querySelector(
+			".value-highlight-overlay",
+		) as HTMLDivElement;
+		const deleteBtn = card.querySelector(".btn-delete") as HTMLButtonElement;
+		const badgeBtn = card.querySelector(".variable-badge") as HTMLDivElement;
 
-    // Bind event hooks cleanly
-    bindVariableCardEvents(card, variable, activeBoard, labelSpan, valInput, overlayEl, deleteBtn, badgeBtn);
+		// Bind event hooks cleanly
+		bindVariableCardEvents(
+			card,
+			variable,
+			activeBoard,
+			labelSpan,
+			valInput,
+			overlayEl,
+			deleteBtn,
+			badgeBtn,
+		);
 
-    inputsContainer.appendChild(card);
-  });
+		inputsContainer.appendChild(card);
+	});
 }
 
 // Render the bottom board toggler tabs
 export function renderTabsList(): void {
-  boardsList.innerHTML = '';
-  const boards = getBoards();
-  const activeBoardId = getActiveBoardId();
+	boardsList.innerHTML = "";
+	const boards = getBoards();
+	const activeBoardId = getActiveBoardId();
 
-  boards.forEach((board) => {
-    const tab = document.createElement('div');
-    tab.className = `board-tab ${board.id === activeBoardId ? 'active' : ''}`;
-    
-    // Switch active board on click
-    tab.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('.btn-tab-close') || target.tagName === 'INPUT') {
-        return;
-      }
-      if (getActiveBoardId() === board.id) {
-        return;
-      }
-      setActiveBoardId(board.id);
-      renderTabsList();
-      renderVariables();
-      evaluateAllVariables(getActiveBoard().variables);
-      updateInputsDisplay();
-    });
+	boards.forEach((board) => {
+		const tab = document.createElement("div");
+		tab.className = `board-tab ${board.id === activeBoardId ? "active" : ""}`;
 
-    // Double click to rename tab inline
-    tab.addEventListener('dblclick', () => {
-      const span = tab.querySelector('.board-tab-name-span') as HTMLSpanElement;
-      if (!span) return;
+		// Switch active board on click
+		tab.addEventListener("click", (e) => {
+			const target = e.target as HTMLElement;
+			if (target.closest(".btn-tab-close") || target.tagName === "INPUT") {
+				return;
+			}
+			if (getActiveBoardId() === board.id) {
+				return;
+			}
+			setActiveBoardId(board.id);
+			renderTabsList();
+			renderVariables();
+			evaluateAllVariables(getActiveBoard().variables);
+			updateInputsDisplay();
+		});
 
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'board-tab-name-input';
-      input.value = board.name;
+		// Double click to rename tab inline
+		tab.addEventListener("dblclick", () => {
+			const span = tab.querySelector(".board-tab-name-span") as HTMLSpanElement;
+			if (!span) return;
 
-      const saveName = () => {
-        board.name = input.value.trim() || 'Untitled Board';
-        renderTabsList();
-      };
+			const input = document.createElement("input");
+			input.type = "text";
+			input.className = "board-tab-name-input";
+			input.value = board.name;
 
-      input.addEventListener('blur', saveName);
-      input.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') {
-          input.blur();
-        }
-      });
+			const saveName = () => {
+				board.name = input.value.trim() || "Untitled Board";
+				renderTabsList();
+			};
 
-      span.replaceWith(input);
-      input.focus();
-      input.select();
-    });
+			input.addEventListener("blur", saveName);
+			input.addEventListener("keydown", (ev) => {
+				if (ev.key === "Enter") {
+					input.blur();
+				}
+			});
 
-    tab.innerHTML = `
+			span.replaceWith(input);
+			input.focus();
+			input.select();
+		});
+
+		tab.innerHTML = `
       <span class="board-tab-name-span">${board.name}</span>
       <button class="btn-tab-close" data-tooltip="Close Board" aria-label="Close">
         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     `;
 
-    const closeBtn = tab.querySelector('.btn-tab-close') as HTMLButtonElement;
-    closeBtn.addEventListener('click', () => {
-      const allBoards = getBoards();
-      if (allBoards.length <= 1) {
-        alert('You must keep at least one board!');
-        return;
-      }
-      
-      const confirmClose = confirm(`Are you sure you want to delete "${board.name}"?`);
-      if (confirmClose) {
-        const remaining = allBoards.filter(x => x.id !== board.id);
-        setBoards(remaining);
-        if (getActiveBoardId() === board.id) {
-          setActiveBoardId(remaining[0].id);
-        }
-        renderTabsList();
-        renderVariables();
-        evaluateAllVariables(getActiveBoard().variables);
-        updateInputsDisplay();
-      }
-    });
+		const closeBtn = tab.querySelector(".btn-tab-close") as HTMLButtonElement;
+		closeBtn.addEventListener("click", () => {
+			const allBoards = getBoards();
+			if (allBoards.length <= 1) {
+				alert("You must keep at least one board!");
+				return;
+			}
 
-    boardsList.appendChild(tab);
-  });
+			const confirmClose = confirm(
+				`Are you sure you want to delete "${board.name}"?`,
+			);
+			if (confirmClose) {
+				const remaining = allBoards.filter((x) => x.id !== board.id);
+				setBoards(remaining);
+				if (getActiveBoardId() === board.id) {
+					setActiveBoardId(remaining[0].id);
+				}
+				renderTabsList();
+				renderVariables();
+				evaluateAllVariables(getActiveBoard().variables);
+				updateInputsDisplay();
+			}
+		});
+
+		boardsList.appendChild(tab);
+	});
 }
 
 export function createNewBoard(): void {
-  const allBoards = getBoards();
-  const newId = `board-${Date.now()}`;
-  const newName = `Board ${allBoards.length + 1}`;
-  
-  allBoards.push({
-    id: newId,
-    name: newName,
-    variables: [
-      { id: 'A', label: 'Item 1', formula: '10', value: 10, hasError: false, x: 20, y: 20 }
-    ]
-  });
+	const allBoards = getBoards();
+	const newId = `board-${Date.now()}`;
+	const newName = `Board ${allBoards.length + 1}`;
 
-  setActiveBoardId(newId);
-  renderTabsList();
-  renderVariables();
-  evaluateAllVariables(getActiveBoard().variables);
-  updateInputsDisplay();
+	allBoards.push({
+		id: newId,
+		name: newName,
+		variables: [
+			{
+				id: "A",
+				label: "Item 1",
+				formula: "10",
+				value: 10,
+				hasError: false,
+				x: 20,
+				y: 20,
+			},
+		],
+	});
+
+	setActiveBoardId(newId);
+	renderTabsList();
+	renderVariables();
+	evaluateAllVariables(getActiveBoard().variables);
+	updateInputsDisplay();
 }

@@ -1,15 +1,19 @@
 {
-  "name": "excell",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+	"name": "excell",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check": "biome check src",
+    "lint": "biome lint src",
+    "format": "biome format --write src"
   },
-  "devDependencies": {
-    "typescript": "~6.0.2",
-    "vite": "^8.1.1"
-  }
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.4",
+		"typescript": "~6.0.2",
+		"vite": "^8.1.1"
+	}
 }
