@@ -12,11 +12,11 @@ interface Variable {
 
 // Initial state - Staggered grid nodes on canvas
 let activeVariables: Variable[] = [
-  { id: 'A', label: 'Base Project Cost', formula: '500', value: 500, hasError: false, x: 40, y: 40 },
-  { id: 'B', label: 'Hourly Rate', formula: '75', value: 75, hasError: false, x: 40, y: 160 },
-  { id: 'C', label: 'Estimated Hours', formula: '40', value: 40, hasError: false, x: 40, y: 280 },
-  { id: 'D', label: 'Discount Percentage', formula: '10', value: 10, hasError: false, x: 40, y: 400 },
-  { id: 'E', label: 'Total Cost', formula: 'A + (B * C) * (1 - D / 100)', value: 3200, hasError: false, x: 320, y: 40 }
+  { id: 'A', label: 'Base Project Cost', formula: '500', value: 500, hasError: false, x: 20, y: 20 },
+  { id: 'B', label: 'Hourly Rate', formula: '75', value: 75, hasError: false, x: 20, y: 120 },
+  { id: 'C', label: 'Estimated Hours', formula: '40', value: 40, hasError: false, x: 20, y: 220 },
+  { id: 'D', label: 'Discount Percentage', formula: '10', value: 10, hasError: false, x: 20, y: 320 },
+  { id: 'E', label: 'Total Cost', formula: 'A + (B * C) * (1 - D / 100)', value: 3200, hasError: false, x: 280, y: 20 }
 ];
 
 // Dragging tracking state
@@ -182,9 +182,9 @@ function addNewVariable() {
   // Find a relatively vacant space or offset from top-left
   let maxPosVal = 0;
   activeVariables.forEach(v => {
-    if (v.x === 40) maxPosVal = Math.max(maxPosVal, v.y);
+    if (v.x === 20) maxPosVal = Math.max(maxPosVal, v.y);
   });
-  const newY = maxPosVal > 0 ? maxPosVal + 120 : 40;
+  const newY = maxPosVal > 0 ? maxPosVal + 100 : 20;
 
   activeVariables.push({
     id: nextId,
