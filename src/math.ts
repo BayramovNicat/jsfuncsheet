@@ -8,7 +8,7 @@ export function isStaticNumber(formula: string): boolean {
 }
 
 // Format displays: omit decimals if integer, show up to 2 decimal places otherwise
-export function formatDisplayValue(val: any): string {
+export function formatDisplayValue(val: unknown): string {
 	if (typeof val === "function") {
 		return "ƒ()";
 	}
@@ -29,16 +29,16 @@ export function formatDisplayValue(val: any): string {
 function getEvaluationContext(
 	mathKeys: string[],
 	argNames: string[],
-	argValues: any[],
+	argValues: unknown[],
 ) {
 	const cleanMathKeys: string[] = [];
-	const cleanMathValues: any[] = [];
+	const cleanMathValues: unknown[] = [];
 
 	for (let i = 0; i < mathKeys.length; i++) {
 		const key = mathKeys[i];
 		if (!argNames.includes(key)) {
 			cleanMathKeys.push(key);
-			cleanMathValues.push((Math as any)[key]);
+			cleanMathValues.push((Math as unknown as Record<string, unknown>)[key]);
 		}
 	}
 
@@ -52,13 +52,15 @@ function getEvaluationContext(
 function compileFunctionContext(
 	formulaStr: string,
 	parameterNames: string[],
-): Function {
+): (...args: unknown[]) => unknown {
 	const hasReturn = /\breturn\b/.test(formulaStr);
 	const functionBody = hasReturn
 		? `"use strict"; ${formulaStr}`
 		: `"use strict"; return (${formulaStr});`;
 
-	return new Function(...parameterNames, functionBody);
+	return new Function(...parameterNames, functionBody) as (
+		...args: unknown[]
+	) => unknown;
 }
 
 // Live JS Compiler / Syntax Check
@@ -94,13 +96,14 @@ export function compileFormula(
 			if (found && !found.hasError && typeof found.value === "function") {
 				return found.value;
 			}
-			const dummy: any = () => 0;
-			dummy.valueOf = () => 0;
-			dummy.toString = () => "0";
+			const dummy = Object.assign(() => 0, {
+				valueOf: () => 0,
+				toString: () => "0",
+			});
 			return new Proxy(dummy, {
 				get: (target, prop) => {
 					if (prop === "valueOf" || prop === "toString") {
-						return target[prop];
+						return target[prop as keyof typeof target];
 					}
 					return dummy;
 				},
@@ -117,8 +120,10 @@ export function compileFormula(
 		fn(...values);
 
 		return { error: null };
-	} catch (err: any) {
-		return { error: err.message || "Invalid syntax" };
+	} catch (err: unknown) {
+		const message =
+			err instanceof Error ? err.message : String(err || "Unknown error");
+		return { error: message || "Invalid syntax" };
 	}
 }
 
@@ -472,10 +477,10 @@ export function syntaxHighlight(
 
 // Safe equation evaluator for active board variables
 export function evaluateAllVariables(variables: Variable[]) {
-	const values: Record<string, any> = {};
+	const values: Record<string, unknown> = {};
 	const errorVars = new Set<string>();
 
-	function resolve(id: string, path: Set<string>): any {
+	function resolve(id: string, path: Set<string>): unknown {
 		if (path.has(id)) {
 			errorVars.add(id);
 			throw new Error("Circular dependency");
@@ -510,7 +515,7 @@ export function evaluateAllVariables(variables: Variable[]) {
 				}
 			});
 
-			const resolvedVars: Record<string, any> = {};
+			const resolvedVars: Record<string, unknown> = {};
 			referenced.forEach((refId) => {
 				resolvedVars[refId] = resolve(refId, new Set(path));
 			});

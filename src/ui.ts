@@ -17,7 +17,7 @@ import {
 	updateCardHighlights,
 } from "./state";
 import { getActiveTooltipTarget, hideTooltip, showTooltip } from "./tooltip";
-import { LAYOUT_CONFIG } from "./types";
+import { type Board, LAYOUT_CONFIG, type Variable } from "./types";
 
 let activeDragId: string | null = null;
 let startMouseX = 0;
@@ -172,7 +172,7 @@ export function deleteVariable(id: string): void {
 	const activeBoard = getActiveBoard();
 	const activeTT = getActiveTooltipTarget();
 
-	if (activeTT && activeTT.closest(`.variable-card[data-id="${id}"]`)) {
+	if (activeTT?.closest(`.variable-card[data-id="${id}"]`)) {
 		hideTooltip();
 	}
 	activeBoard.variables = activeBoard.variables.filter((v) => v.id !== id);
@@ -185,7 +185,7 @@ export function deleteVariable(id: string): void {
 export function insertBadgeId(id: string): void {
 	const activeBoard = getActiveBoard();
 	const active = document.activeElement as HTMLTextAreaElement | null;
-	if (!active || !active.classList.contains("var-value-input")) return;
+	if (!active?.classList.contains("var-value-input")) return;
 
 	const varId = active.getAttribute("data-id");
 	const variable = activeBoard.variables.find((v) => v.id === varId);
@@ -243,8 +243,8 @@ export function insertBadgeId(id: string): void {
 // Separate listener hooks definition for variables (reduces nesting size in render)
 function bindVariableCardEvents(
 	card: HTMLDivElement,
-	variable: any,
-	activeBoard: any,
+	variable: Variable,
+	activeBoard: Board,
 	labelSpan: HTMLSpanElement,
 	valInput: HTMLTextAreaElement,
 	overlayEl: HTMLDivElement,
@@ -300,7 +300,7 @@ function bindVariableCardEvents(
 
 	badgeBtn.addEventListener("mousedown", (e) => {
 		const active = document.activeElement;
-		if (active && active.classList.contains("var-value-input")) {
+		if (active?.classList.contains("var-value-input")) {
 			e.preventDefault();
 			insertBadgeId(variable.id);
 		}
@@ -313,7 +313,7 @@ function bindVariableCardEvents(
 
 	overlayEl.addEventListener("click", (e) => {
 		const target = e.target as HTMLElement;
-		if (target && target.className.includes("hl-")) {
+		if (target?.className.includes("hl-")) {
 			const varId = target.textContent?.trim();
 			if (varId) {
 				const targetInput = document.querySelector(
@@ -329,7 +329,7 @@ function bindVariableCardEvents(
 	overlayEl.addEventListener("mouseover", (e) => {
 		if (!document.body.classList.contains("cmd-pressed")) return;
 		const target = e.target as HTMLElement;
-		if (target && target.className.includes("hl-")) {
+		if (target?.className.includes("hl-")) {
 			const varId = target.textContent?.trim();
 			if (varId) {
 				document
@@ -350,9 +350,9 @@ function bindVariableCardEvents(
 
 	overlayEl.addEventListener("mouseout", (e) => {
 		const target = e.target as HTMLElement;
-		if (target && target.className.includes("hl-")) {
+		if (target?.className.includes("hl-")) {
 			const related = e.relatedTarget as HTMLElement;
-			if (!related || !related.className.includes("hl-")) {
+			if (!related?.className.includes("hl-")) {
 				inputsContainer.classList.remove("highlighting-target");
 				document
 					.querySelectorAll(".variable-card.navigation-highlight")
@@ -520,7 +520,7 @@ function bindVariableCardEvents(
 			const nextChar = val[start];
 			if (PAIRS[prevChar] === nextChar) {
 				e.preventDefault();
-				valInput.value = val.substring(0, start - 1) + val.substring(start + 1);
+				valInput.value = `${val.substring(0, start - 1)}${val.substring(start + 1)}`;
 				valInput.setSelectionRange(start - 1, start - 1);
 				triggerInputUpdate();
 				return;
@@ -530,15 +530,15 @@ function bindVariableCardEvents(
 		if (e.key === "Tab") {
 			e.preventDefault();
 			if (!e.shiftKey) {
-				valInput.value = val.substring(0, start) + "    " + val.substring(end);
+				valInput.value = `${val.substring(0, start)}    ${val.substring(end)}`;
 				valInput.setSelectionRange(start + 4, start + 4);
 			} else {
 				if (start === end && start > 0) {
 					if (val.substring(start - 4, start) === "    ") {
-						valInput.value = val.substring(0, start - 4) + val.substring(start);
+						valInput.value = `${val.substring(0, start - 4)}${val.substring(start)}`;
 						valInput.setSelectionRange(start - 4, start - 4);
 					} else if (val[start - 1] === "\t") {
-						valInput.value = val.substring(0, start - 1) + val.substring(start);
+						valInput.value = `${val.substring(0, start - 1)}${val.substring(start)}`;
 						valInput.setSelectionRange(start - 1, start - 1);
 					}
 				}
@@ -563,14 +563,8 @@ function bindVariableCardEvents(
 				(lastChar === "(" && charAfter === ")")
 			) {
 				e.preventDefault();
-				const indent = leadingWhitespace + "    ";
-				valInput.value =
-					val.substring(0, start) +
-					"\n" +
-					indent +
-					"\n" +
-					leadingWhitespace +
-					val.substring(start);
+				const indent = `${leadingWhitespace}    `;
+				valInput.value = `${val.substring(0, start)}\n${indent}\n${leadingWhitespace}${val.substring(start)}`;
 				const newPos = start + 1 + indent.length;
 				valInput.setSelectionRange(newPos, newPos);
 				triggerInputUpdate();
@@ -585,13 +579,10 @@ function bindVariableCardEvents(
 				e.shiftKey
 			) {
 				e.preventDefault();
-				const indent =
-					leadingWhitespace +
-					(lastChar === "{" || lastChar === "[" || lastChar === "("
-						? "    "
-						: "");
-				valInput.value =
-					val.substring(0, start) + "\n" + indent + val.substring(start);
+				const indent = `${leadingWhitespace}${
+					lastChar === "{" || lastChar === "[" || lastChar === "(" ? "    " : ""
+				}`;
+				valInput.value = `${val.substring(0, start)}\n${indent}${val.substring(start)}`;
 				const newPos = start + 1 + indent.length;
 				valInput.setSelectionRange(newPos, newPos);
 				triggerInputUpdate();
