@@ -907,13 +907,125 @@ export function drawConnections(): void {
 			const refVar = activeBoard.variables.find((x) => x.id === refId);
 			if (!refVar) return;
 
-			const x1 = refVar.x + LAYOUT_CONFIG.CARD_WIDTH;
-			const y1 = refVar.y + LAYOUT_CONFIG.CARD_HEIGHT / 2;
-			const x2 = v.x;
-			const y2 = v.y + LAYOUT_CONFIG.CARD_HEIGHT / 2;
+			// Define 8 possible output anchors for the source card
+			const srcPoints = [
+				{
+					x: refVar.x + LAYOUT_CONFIG.CARD_WIDTH / 2,
+					y: refVar.y,
+					dx: 0,
+					dy: -1,
+				}, // top
+				{
+					x: refVar.x + LAYOUT_CONFIG.CARD_WIDTH,
+					y: refVar.y,
+					dx: 0.707,
+					dy: -0.707,
+				}, // top-right
+				{
+					x: refVar.x + LAYOUT_CONFIG.CARD_WIDTH,
+					y: refVar.y + LAYOUT_CONFIG.CARD_HEIGHT / 2,
+					dx: 1,
+					dy: 0,
+				}, // right
+				{
+					x: refVar.x + LAYOUT_CONFIG.CARD_WIDTH,
+					y: refVar.y + LAYOUT_CONFIG.CARD_HEIGHT,
+					dx: 0.707,
+					dy: 0.707,
+				}, // bottom-right
+				{
+					x: refVar.x + LAYOUT_CONFIG.CARD_WIDTH / 2,
+					y: refVar.y + LAYOUT_CONFIG.CARD_HEIGHT,
+					dx: 0,
+					dy: 1,
+				}, // bottom
+				{
+					x: refVar.x,
+					y: refVar.y + LAYOUT_CONFIG.CARD_HEIGHT,
+					dx: -0.707,
+					dy: 0.707,
+				}, // bottom-left
+				{
+					x: refVar.x,
+					y: refVar.y + LAYOUT_CONFIG.CARD_HEIGHT / 2,
+					dx: -1,
+					dy: 0,
+				}, // left
+				{ x: refVar.x, y: refVar.y, dx: -0.707, dy: -0.707 }, // top-left
+			];
 
-			const dx = Math.abs(x2 - x1) * 0.5 || 50;
-			const pathData = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+			// Define 8 possible input anchors for the target card
+			const targetPoints = [
+				{ x: v.x + LAYOUT_CONFIG.CARD_WIDTH / 2, y: v.y, dx: 0, dy: -1 }, // top
+				{
+					x: v.x + LAYOUT_CONFIG.CARD_WIDTH,
+					y: v.y,
+					dx: 0.707,
+					dy: -0.707,
+				}, // top-right
+				{
+					x: v.x + LAYOUT_CONFIG.CARD_WIDTH,
+					y: v.y + LAYOUT_CONFIG.CARD_HEIGHT / 2,
+					dx: 1,
+					dy: 0,
+				}, // right
+				{
+					x: v.x + LAYOUT_CONFIG.CARD_WIDTH,
+					y: v.y + LAYOUT_CONFIG.CARD_HEIGHT,
+					dx: 0.707,
+					dy: 0.707,
+				}, // bottom-right
+				{
+					x: v.x + LAYOUT_CONFIG.CARD_WIDTH / 2,
+					y: v.y + LAYOUT_CONFIG.CARD_HEIGHT,
+					dx: 0,
+					dy: 1,
+				}, // bottom
+				{
+					x: v.x,
+					y: v.y + LAYOUT_CONFIG.CARD_HEIGHT,
+					dx: -0.707,
+					dy: 0.707,
+				}, // bottom-left
+				{
+					x: v.x,
+					y: v.y + LAYOUT_CONFIG.CARD_HEIGHT / 2,
+					dx: -1,
+					dy: 0,
+				}, // left
+				{ x: v.x, y: v.y, dx: -0.707, dy: -0.707 }, // top-left
+			];
+
+			// Find pair of points with minimum Euclidean distance
+			let minDistance = Number.MAX_VALUE;
+			let bestSrc = srcPoints[2]; // fallback to right
+			let bestTarget = targetPoints[6]; // fallback to left
+
+			srcPoints.forEach((s) => {
+				targetPoints.forEach((t) => {
+					const dist = Math.hypot(t.x - s.x, t.y - s.y);
+					if (dist < minDistance) {
+						minDistance = dist;
+						bestSrc = s;
+						bestTarget = t;
+					}
+				});
+			});
+
+			const x1 = bestSrc.x;
+			const y1 = bestSrc.y;
+			const x2 = bestTarget.x;
+			const y2 = bestTarget.y;
+
+			// Control point scaling relative to distance
+			const controlScale = Math.min(100, Math.max(30, minDistance * 0.25));
+
+			const cp1x = x1 + bestSrc.dx * controlScale;
+			const cp1y = y1 + bestSrc.dy * controlScale;
+			const cp2x = x2 + bestTarget.dx * controlScale;
+			const cp2y = y2 + bestTarget.dy * controlScale;
+
+			const pathData = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
 
 			const path = document.createElementNS(
 				"http://www.w3.org/2000/svg",
