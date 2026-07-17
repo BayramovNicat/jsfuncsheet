@@ -95,6 +95,13 @@ document.addEventListener("mouseover", (e) => {
 		"[data-tooltip]",
 	) as HTMLElement;
 	if (target) {
+		if (target.hasAttribute("title")) {
+			const titleVal = target.getAttribute("title");
+			if (titleVal) {
+				target.setAttribute("data-original-title", titleVal);
+				target.removeAttribute("title");
+			}
+		}
 		showTooltip(target);
 	}
 });
@@ -103,6 +110,13 @@ document.addEventListener("mouseout", (e) => {
 	const target = (e.target as HTMLElement).closest(
 		"[data-tooltip]",
 	) as HTMLElement;
+	if (target) {
+		const originalTitle = target.getAttribute("data-original-title");
+		if (originalTitle) {
+			target.setAttribute("title", originalTitle);
+			target.removeAttribute("data-original-title");
+		}
+	}
 	const activeTT = getActiveTooltipTarget();
 	if (target && target === activeTT) {
 		hideTooltip();

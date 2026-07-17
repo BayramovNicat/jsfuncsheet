@@ -100,12 +100,10 @@ body {
 	justify-content: center;
 	width: 1.25rem;
 	height: 1.25rem;
-	transition: opacity 0.15s ease;
 }
 
 .btn-delete svg {
 	stroke: var(--text-muted);
-	transition: stroke 0.15s ease;
 }
 
 .variable-card:hover .btn-delete {
