@@ -286,6 +286,9 @@ function bindVariableCardEvents(
 		valInput.value = variable.formula;
 		valInput.classList.remove("calc-error");
 		autoSizeTextarea(valInput);
+		requestAnimationFrame(() => {
+			autoSizeTextarea(valInput);
+		});
 
 		overlayEl.style.display = "block";
 		overlayEl.innerHTML = syntaxHighlight(
