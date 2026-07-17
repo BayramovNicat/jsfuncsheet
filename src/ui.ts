@@ -327,7 +327,7 @@ function bindVariableCardEvents(
 		updateInputsDisplay();
 	});
 
-	valInput.addEventListener("input", () => {
+	const triggerInputUpdate = () => {
 		variable.formula = valInput.value;
 		autoSizeTextarea(valInput);
 
@@ -358,7 +358,9 @@ function bindVariableCardEvents(
 
 		evaluateAllVariables(activeBoard.variables);
 		updateInputsDisplay();
-	});
+	};
+
+	valInput.addEventListener("input", triggerInputUpdate);
 
 	valInput.addEventListener("keydown", (e) => {
 		if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -366,46 +368,159 @@ function bindVariableCardEvents(
 			if (isNum) {
 				e.preventDefault();
 				let val = parseFloat(valInput.value);
-				if (isNaN(val)) val = 0;
+				if (Number.isNaN(val)) val = 0;
 
 				const step = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
 				val += e.key === "ArrowUp" ? step : -step;
 
 				valInput.value = parseFloat(val.toFixed(4)).toString();
-				variable.formula = valInput.value;
-
-				autoSizeTextarea(valInput);
-				overlayEl.innerHTML = syntaxHighlight(
-					valInput.value,
-					variable.id,
-					activeBoard.variables,
-				);
-				overlayEl.scrollLeft = valInput.scrollLeft;
-				overlayEl.scrollTop = valInput.scrollTop;
-				updateCardHighlights(variable.id, valInput.value);
-
-				const check = compileFormula(
-					valInput.value,
-					variable.id,
-					activeBoard.variables,
-				);
-				if (check.error) {
-					valInput.setAttribute("data-tooltip", `⚠️ ${check.error}`);
-					valInput.classList.add("calc-error");
-					showTooltip(valInput);
-				} else {
-					valInput.removeAttribute("data-tooltip");
-					valInput.classList.remove("calc-error");
-					hideTooltip();
-				}
-
-				evaluateAllVariables(activeBoard.variables);
-				updateInputsDisplay();
+				triggerInputUpdate();
 			}
-		} else if (e.key === "Enter" && !e.shiftKey) {
+			return;
+		}
+
+		const PAIRS: Record<string, string> = {
+			"{": "}",
+			"[": "]",
+			"(": ")",
+			'"': '"',
+			"'": "'",
+			"`": "`",
+		};
+		const CLOSE_CHARS = new Set(["}", "]", ")", '"', "'", "`"]);
+
+		const start = valInput.selectionStart ?? 0;
+		const end = valInput.selectionEnd ?? 0;
+		const val = valInput.value;
+
+		if (PAIRS[e.key] !== undefined) {
 			e.preventDefault();
-			valInput.blur();
-		} else if (e.key === "Escape") {
+			const openChar = e.key;
+			const closeChar = PAIRS[openChar];
+
+			if (
+				(openChar === '"' || openChar === "'" || openChar === "`") &&
+				start === end &&
+				val[start] === openChar
+			) {
+				valInput.setSelectionRange(start + 1, start + 1);
+				return;
+			}
+
+			if (start !== end) {
+				const selected = val.substring(start, end);
+				valInput.value =
+					val.substring(0, start) +
+					openChar +
+					selected +
+					closeChar +
+					val.substring(end);
+				valInput.setSelectionRange(start + 1, end + 1);
+			} else {
+				valInput.value =
+					val.substring(0, start) + openChar + closeChar + val.substring(start);
+				valInput.setSelectionRange(start + 1, start + 1);
+			}
+			triggerInputUpdate();
+			return;
+		}
+
+		if (CLOSE_CHARS.has(e.key) && start === end && val[start] === e.key) {
+			e.preventDefault();
+			valInput.setSelectionRange(start + 1, start + 1);
+			return;
+		}
+
+		if (e.key === "Backspace" && start === end && start > 0) {
+			const prevChar = val[start - 1];
+			const nextChar = val[start];
+			if (PAIRS[prevChar] === nextChar) {
+				e.preventDefault();
+				valInput.value = val.substring(0, start - 1) + val.substring(start + 1);
+				valInput.setSelectionRange(start - 1, start - 1);
+				triggerInputUpdate();
+				return;
+			}
+		}
+
+		if (e.key === "Tab") {
+			e.preventDefault();
+			if (!e.shiftKey) {
+				valInput.value = val.substring(0, start) + "    " + val.substring(end);
+				valInput.setSelectionRange(start + 4, start + 4);
+			} else {
+				if (start === end && start > 0) {
+					if (val.substring(start - 4, start) === "    ") {
+						valInput.value = val.substring(0, start - 4) + val.substring(start);
+						valInput.setSelectionRange(start - 4, start - 4);
+					} else if (val[start - 1] === "\t") {
+						valInput.value = val.substring(0, start - 1) + val.substring(start);
+						valInput.setSelectionRange(start - 1, start - 1);
+					}
+				}
+			}
+			triggerInputUpdate();
+			return;
+		}
+
+		if (e.key === "Enter") {
+			const beforeCursor = val.substring(0, start);
+			const lineStartIdx = beforeCursor.lastIndexOf("\n") + 1;
+			const currentLine = beforeCursor.substring(lineStartIdx);
+			const whitespaceMatch = currentLine.match(/^\s*/);
+			const leadingWhitespace = whitespaceMatch ? whitespaceMatch[0] : "";
+
+			const lastChar = currentLine.trim().slice(-1);
+			const charAfter = val[start];
+
+			if (
+				(lastChar === "{" && charAfter === "}") ||
+				(lastChar === "[" && charAfter === "]") ||
+				(lastChar === "(" && charAfter === ")")
+			) {
+				e.preventDefault();
+				const indent = leadingWhitespace + "    ";
+				valInput.value =
+					val.substring(0, start) +
+					"\n" +
+					indent +
+					"\n" +
+					leadingWhitespace +
+					val.substring(start);
+				const newPos = start + 1 + indent.length;
+				valInput.setSelectionRange(newPos, newPos);
+				triggerInputUpdate();
+				return;
+			}
+
+			if (
+				lastChar === "{" ||
+				lastChar === "[" ||
+				lastChar === "(" ||
+				val.includes("\n") ||
+				e.shiftKey
+			) {
+				e.preventDefault();
+				const indent =
+					leadingWhitespace +
+					(lastChar === "{" || lastChar === "[" || lastChar === "("
+						? "    "
+						: "");
+				valInput.value =
+					val.substring(0, start) + "\n" + indent + val.substring(start);
+				const newPos = start + 1 + indent.length;
+				valInput.setSelectionRange(newPos, newPos);
+				triggerInputUpdate();
+				return;
+			}
+
+			if (!e.shiftKey) {
+				e.preventDefault();
+				valInput.blur();
+			}
+		}
+
+		if (e.key === "Escape") {
 			valInput.blur();
 		}
 	});
