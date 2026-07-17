@@ -12,6 +12,7 @@ import {
 import {
 	addNewVariable,
 	createNewBoard,
+	drawConnections,
 	getActiveDragId,
 	getDragStartCard,
 	getDragStartMouse,
@@ -68,6 +69,9 @@ window.addEventListener("mousemove", (e) => {
 
 	card.style.left = `${snappedPos.x}px`;
 	card.style.top = `${snappedPos.y}px`;
+
+	// Redraw lines dynamically during drag
+	drawConnections();
 });
 
 window.addEventListener("mouseup", () => {

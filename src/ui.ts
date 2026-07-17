@@ -244,6 +244,7 @@ export function insertBadgeId(id: string): void {
 
 	evaluateAllVariables(activeBoard.variables);
 	updateInputsDisplay();
+	drawConnections();
 }
 
 // Separate listener hooks definition for variables (reduces nesting size in render)
@@ -449,6 +450,7 @@ function bindVariableCardEvents(
 
 		evaluateAllVariables(activeBoard.variables);
 		updateInputsDisplay();
+		drawConnections();
 	};
 
 	valInput.addEventListener("input", triggerInputUpdate);
@@ -608,6 +610,26 @@ function bindVariableCardEvents(
 	});
 
 	deleteBtn.addEventListener("click", () => deleteVariable(variable.id));
+
+	card.addEventListener("mouseenter", () => {
+		const lines = document.querySelectorAll(
+			`#connections-svg .connection-line.src-${variable.id}, #connections-svg .connection-line.target-${variable.id}`,
+		);
+		lines.forEach((line) => {
+			line.setAttribute("opacity", "0.9");
+			line.setAttribute("stroke-width", "3.5");
+		});
+	});
+
+	card.addEventListener("mouseleave", () => {
+		const lines = document.querySelectorAll(
+			`#connections-svg .connection-line.src-${variable.id}, #connections-svg .connection-line.target-${variable.id}`,
+		);
+		lines.forEach((line) => {
+			line.setAttribute("opacity", "0.35");
+			line.setAttribute("stroke-width", "2");
+		});
+	});
 }
 
 // Render dynamic card entries
@@ -674,6 +696,8 @@ export function renderVariables(): void {
 
 		inputsContainer.appendChild(card);
 	});
+
+	drawConnections();
 }
 // Render the bottom board toggler tabs
 export function renderTabsList(): void {
@@ -789,4 +813,108 @@ export function createNewBoard(): void {
 	renderVariables();
 	evaluateAllVariables(getActiveBoard().variables);
 	updateInputsDisplay();
+}
+
+export function drawConnections(): void {
+	const activeBoard = getActiveBoard();
+	let svg = document.getElementById("connections-svg") as SVGElement | null;
+	if (!svg) {
+		svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		svg.id = "connections-svg";
+		svg.setAttribute(
+			"style",
+			"position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;",
+		);
+		inputsContainer.prepend(svg);
+	} else {
+		svg.innerHTML = "";
+	}
+
+	let maxW = inputsContainer.clientWidth;
+	let maxH = inputsContainer.clientHeight;
+	activeBoard.variables.forEach((v) => {
+		maxW = Math.max(maxW, v.x + LAYOUT_CONFIG.CARD_WIDTH + 100);
+		maxH = Math.max(maxH, v.y + LAYOUT_CONFIG.CARD_HEIGHT + 100);
+	});
+	svg.setAttribute("width", `${maxW}px`);
+	svg.setAttribute("height", `${maxH}px`);
+
+	const colors = [
+		"#2563eb",
+		"#d97706",
+		"#059669",
+		"#7c3aed",
+		"#db2777",
+		"#0891b2",
+		"#e11d48",
+		"#0d9488",
+		"#65a30d",
+		"#4f46e5",
+	];
+
+	const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+	colors.forEach((color, idx) => {
+		const marker = document.createElementNS(
+			"http://www.w3.org/2000/svg",
+			"marker",
+		);
+		marker.id = `arrow-${idx + 1}`;
+		marker.setAttribute("viewBox", "0 0 10 10");
+		marker.setAttribute("refX", "6");
+		marker.setAttribute("refY", "5");
+		marker.setAttribute("markerWidth", "6");
+		marker.setAttribute("markerHeight", "6");
+		marker.setAttribute("orient", "auto-start-reverse");
+
+		const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+		path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+		path.setAttribute("fill", color);
+		marker.appendChild(path);
+		defs.appendChild(marker);
+	});
+	svg.appendChild(defs);
+
+	activeBoard.variables.forEach((v) => {
+		if (v.hasError) return;
+		const formulaStr = v.formula.trim();
+		if (!formulaStr) return;
+
+		const referenced: string[] = [];
+		activeBoard.variables.forEach((x) => {
+			if (x.id !== v.id && new RegExp(`\\b${x.id}\\b`).test(formulaStr)) {
+				referenced.push(x.id);
+			}
+		});
+
+		referenced.forEach((refId) => {
+			const refVar = activeBoard.variables.find((x) => x.id === refId);
+			if (!refVar) return;
+
+			const x1 = refVar.x + LAYOUT_CONFIG.CARD_WIDTH;
+			const y1 = refVar.y + LAYOUT_CONFIG.CARD_HEIGHT / 2;
+			const x2 = v.x;
+			const y2 = v.y + LAYOUT_CONFIG.CARD_HEIGHT / 2;
+
+			const dx = Math.abs(x2 - x1) * 0.5 || 50;
+			const pathData = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+			const path = document.createElementNS(
+				"http://www.w3.org/2000/svg",
+				"path",
+			);
+			path.setAttribute("d", pathData);
+			path.setAttribute("fill", "none");
+
+			const colorIdx = refVar.colorIndex || 1;
+			const color = colors[colorIdx - 1];
+			path.setAttribute("stroke", color);
+			path.setAttribute("stroke-width", "2");
+			path.setAttribute("stroke-linecap", "round");
+			path.setAttribute("opacity", "0.35");
+			path.setAttribute("marker-end", `url(#arrow-${colorIdx})`);
+			path.setAttribute("class", `connection-line src-${refId} target-${v.id}`);
+
+			svg.appendChild(path);
+		});
+	});
 }
