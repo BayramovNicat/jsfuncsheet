@@ -13,6 +13,13 @@ export function formatDisplayValue(val: unknown): string {
 	if (typeof val === "function") {
 		return "ƒ()";
 	}
+	if (val && typeof val === "object") {
+		try {
+			return JSON.stringify(val);
+		} catch (_) {
+			return "[Object]";
+		}
+	}
 	if (typeof val !== "number") {
 		return String(val);
 	}
@@ -94,8 +101,13 @@ export function compileFormula(
 
 		const mockValues = referenced.map((refId) => {
 			const found = variables.find((x) => x.id === refId);
-			if (found && !found.hasError && typeof found.value === "function") {
-				return found.value;
+			if (found && !found.hasError) {
+				if (typeof found.value === "function") {
+					return found.value;
+				}
+				if (typeof found.value === "object" && found.value !== null) {
+					return found.value;
+				}
 			}
 			const dummy = Object.assign(() => 0, {
 				valueOf: () => 0,
@@ -205,7 +217,8 @@ export function evaluateAllVariables(variables: Variable[]) {
 				(typeof rawResult !== "number" &&
 					typeof rawResult !== "function" &&
 					typeof rawResult !== "string" &&
-					typeof rawResult !== "boolean") ||
+					typeof rawResult !== "boolean" &&
+					typeof rawResult !== "object") ||
 				(typeof rawResult === "number" &&
 					(Number.isNaN(rawResult) || !Number.isFinite(rawResult)))
 			) {
