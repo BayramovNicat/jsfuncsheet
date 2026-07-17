@@ -23,9 +23,9 @@ let boards: Board[] = [
     name: 'Pricing Estimator',
     variables: [
       { id: 'A', label: 'Base Project Cost', formula: '500', value: 500, hasError: false, x: 20, y: 20 },
-      { id: 'B', label: 'Hourly Rate', formula: '75', value: 75, hasError: false, x: 20, y: 120 },
-      { id: 'C', label: 'Estimated Hours', formula: '40', value: 40, hasError: false, x: 20, y: 220 },
-      { id: 'D', label: 'Discount Percentage', formula: '10', value: 10, hasError: false, x: 20, y: 320 },
+      { id: 'B', label: 'Hourly Rate', formula: '75', value: 75, hasError: false, x: 20, y: 100 },
+      { id: 'C', label: 'Estimated Hours', formula: '40', value: 40, hasError: false, x: 20, y: 180 },
+      { id: 'D', label: 'Discount Percentage', formula: '10', value: 10, hasError: false, x: 20, y: 260 },
       { id: 'E', label: 'Total Cost', formula: 'A + (B * C) * (1 - D / 100)', value: 3200, hasError: false, x: 280, y: 20 }
     ]
   },
@@ -34,8 +34,8 @@ let boards: Board[] = [
     name: 'Dinner Splitter',
     variables: [
       { id: 'A', label: 'Total Dinner Bill', formula: '120', value: 120, hasError: false, x: 20, y: 20 },
-      { id: 'B', label: 'Number of Friends', formula: '4', value: 4, hasError: false, x: 20, y: 120 },
-      { id: 'C', label: 'Tip Percentage', formula: '15', value: 15, hasError: false, x: 20, y: 220 },
+      { id: 'B', label: 'Number of Friends', formula: '4', value: 4, hasError: false, x: 20, y: 100 },
+      { id: 'C', label: 'Tip Percentage', formula: '15', value: 15, hasError: false, x: 20, y: 180 },
       { id: 'D', label: 'Cost Per Friend', formula: '(A * (1 + C / 100)) / B', value: 34.5, hasError: false, x: 280, y: 20 }
     ]
   }
@@ -230,7 +230,7 @@ function autoSizeInput(inputEl: HTMLInputElement) {
 function findVacantPosition(): { x: number; y: number } {
   const activeBoard = getActiveBoard();
   const cardWidth = 240;
-  const cardHeight = 80;
+  const cardHeight = 60;
   
   const containerWidth = inputsContainer.clientWidth || window.innerWidth || 800;
   // Subtract footer tab bar height (48px) from clientHeight measurements
@@ -238,7 +238,7 @@ function findVacantPosition(): { x: number; y: number } {
 
   // Phase 1: Scan vertically down column 1, then column 2, etc. (strictly inside visible screen space)
   for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
-    for (let y = 20; y < containerHeight - cardHeight; y += 100) {
+    for (let y = 20; y < containerHeight - cardHeight; y += 80) {
       const overlaps = activeBoard.variables.some((v) => {
         return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
                  y + cardHeight <= v.y || v.y + cardHeight <= y);
@@ -250,8 +250,8 @@ function findVacantPosition(): { x: number; y: number } {
   }
 
   // Phase 2: If the entire visible grid is fully occupied, start placing cards below the fold row-by-row
-  const startY = Math.max(20, Math.floor((containerHeight - cardHeight) / 100) * 100 + 20);
-  for (let y = startY; y < 5000 - cardHeight; y += 100) {
+  const startY = Math.max(20, Math.floor((containerHeight - cardHeight) / 80) * 80 + 20);
+  for (let y = startY; y < 5000 - cardHeight; y += 80) {
     for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
       const overlaps = activeBoard.variables.some((v) => {
         return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
@@ -347,7 +347,7 @@ function renderVariables() {
           <div class="var-title-row">
             <div class="var-title-left">
               <span class="variable-badge" data-badge-id="${variable.id}" data-tooltip="Insert ${variable.id}">${variable.id}</span>
-              <input type="text" class="var-label-input" value="${variable.label}" title="Click to edit label name" placeholder="Label text">
+              <span class="var-label-span">${variable.label}</span>
             </div>
             <button class="btn-delete" data-tooltip="Delete Variable" aria-label="Delete">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
@@ -358,7 +358,7 @@ function renderVariables() {
       </div>
     `;
 
-    const labelInput = card.querySelector('.var-label-input') as HTMLInputElement;
+    const labelSpan = card.querySelector('.var-label-span') as HTMLSpanElement;
     const valInput = card.querySelector('.var-value-input') as HTMLInputElement;
     const deleteBtn = card.querySelector('.btn-delete') as HTMLButtonElement;
     const badgeBtn = card.querySelector('.variable-badge') as HTMLDivElement;
@@ -380,9 +380,32 @@ function renderVariables() {
       card.style.zIndex = '50';
     });
 
-    labelInput.addEventListener('input', () => {
-      variable.label = labelInput.value;
+    // Double click label to rename inline
+    labelSpan.addEventListener('dblclick', () => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'var-label-input';
+      input.value = variable.label;
+
+      const saveLabel = () => {
+        variable.label = input.value.trim() || `Variable ${variable.id}`;
+        renderVariables();
+        updateInputsDisplay();
+      };
+
+      input.addEventListener('blur', saveLabel);
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          input.blur();
+        }
+      });
+
+      labelSpan.replaceWith(input);
+      input.focus();
+      input.select();
     });
+
+
 
     badgeBtn.addEventListener('mousedown', (e) => {
       const active = document.activeElement;
@@ -568,6 +591,9 @@ function renderTabsList() {
       if (target.closest('.btn-tab-close') || target.tagName === 'INPUT') {
         return;
       }
+      if (activeBoardId === board.id) {
+        return; // Avoid destroying DOM on click so dblclick can work
+      }
       activeBoardId = board.id;
       renderTabsList();
       renderVariables();
@@ -603,7 +629,7 @@ function renderTabsList() {
     });
 
     tab.innerHTML = `
-      <span class="board-tab-name-span" title="Double click to rename">${board.name}</span>
+      <span class="board-tab-name-span">${board.name}</span>
       <button class="btn-tab-close" data-tooltip="Close Board" aria-label="Close">
         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>

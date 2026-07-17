@@ -132,11 +132,11 @@ body {
 .variable-card {
   position: absolute;
   width: 240px;
-  height: 80px;
+  height: 60px;
   background: #ffffff;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: 0.5rem 0.75rem;
+  padding: 5px 0.6rem 7px 0.6rem;
   cursor: grab;
   user-select: none;
   box-shadow: var(--shadow-sm);
@@ -157,6 +157,7 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 1rem;
+  width: 100%;
 }
 
 .var-title-row {
@@ -209,10 +210,10 @@ body {
 input[type="text"],
 input[type="number"] {
   width: 100%;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid #e2e8f0;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid transparent !important;
   border-radius: var(--radius-sm);
-  background: #f8fafc;
+  background: transparent !important;
   color: var(--text-primary);
   font-family: inherit;
   font-size: 0.9rem;
@@ -221,10 +222,12 @@ input[type="number"] {
 
 input[type="text"]:focus,
 input[type="number"]:focus {
-  outline: none;
-  border-color: var(--border-focus);
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  outline: none !important;
+  border-color: transparent !important;
+  border-bottom: 1px dashed var(--border-focus) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .var-value-input {
@@ -245,35 +248,45 @@ input[type="number"]:hover::-webkit-inner-spin-button {
 
 /* Dynamic error input styles */
 input.calc-error {
-  border-color: var(--danger-text) !important;
+  border-color: transparent !important;
   color: var(--danger-text) !important;
-  background: var(--danger-bg) !important;
+  background: transparent !important;
+  font-weight: 600;
 }
 
-/* Clean editable label input that mimics standard label on top */
+/* Clean editable label span and inline input */
+.var-label-span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0.1rem 0.25rem;
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  display: inline-block;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
 .var-label-input {
   border: none !important;
   background: transparent !important;
   font-size: 0.75rem !important;
   font-weight: 600 !important;
-  color: var(--text-secondary) !important;
-  padding: 0.1rem 0.25rem !important;
-  width: 100% !important;
-  cursor: pointer;
-  text-overflow: ellipsis;
-  margin-bottom: 0 !important;
-}
-
-.var-label-input:hover {
-  background: var(--border-light) !important;
   color: var(--text-primary) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: 140px !important;
+  cursor: text;
 }
 
 .var-label-input:focus {
-  background: #ffffff !important;
-  color: var(--text-primary) !important;
-  outline: 1px solid var(--border-light) !important;
-  cursor: text;
+  outline: none !important;
+  box-shadow: none !important;
+  border-bottom: 1px dashed var(--border-focus) !important;
 }
 
 /* Dynamic Global Tooltip */
