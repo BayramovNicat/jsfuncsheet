@@ -106,9 +106,14 @@ export function updateInputsDisplay(): void {
 		if (v.hasError) {
 			inputEl.value = "Error";
 			inputEl.classList.add("calc-error");
+			inputEl.setAttribute(
+				"data-tooltip",
+				`⚠️ ${v.error || "Evaluation error"}`,
+			);
 		} else {
 			inputEl.value = formatDisplayValue(v.value);
 			inputEl.classList.remove("calc-error");
+			inputEl.removeAttribute("data-tooltip");
 		}
 	});
 }
@@ -619,6 +624,10 @@ export function renderVariables(): void {
 			? "Error"
 			: formatDisplayValue(variable.value);
 
+		const errAttr = variable.hasError
+			? ` data-tooltip="⚠️ ${variable.error || "Evaluation error"}" class="var-value-input calc-error"`
+			: ' class="var-value-input"';
+
 		card.innerHTML = `
       <div class="variable-card-row">
         <div class="field-group">
@@ -632,7 +641,7 @@ export function renderVariables(): void {
             </button>
           </div>
           <div class="var-value-wrapper">
-            <textarea class="var-value-input" data-id="${variable.id}" spellcheck="false" autocomplete="off" rows="1">${displayVal}</textarea>
+            <textarea${errAttr} data-id="${variable.id}" spellcheck="false" autocomplete="off" rows="1">${displayVal}</textarea>
             <div class="value-highlight-overlay" data-id="${variable.id}"></div>
           </div>
         </div>

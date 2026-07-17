@@ -4,6 +4,7 @@ export interface Variable {
 	formula: string; // Underlying formula (e.g., "A * B" or "100")
 	value: any; // Calculated value
 	hasError: boolean;
+	error?: string | null; // Detailed evaluation error message
 	x: number; // absolute X position on canvas
 	y: number; // absolute Y position on canvas
 	colorIndex?: number; // Persistent color index (1 to 10)

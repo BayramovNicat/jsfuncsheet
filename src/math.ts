@@ -480,10 +480,19 @@ export function evaluateAllVariables(variables: Variable[]) {
 	const values: Record<string, unknown> = {};
 	const errorVars = new Set<string>();
 
+	// Clear all errors first
+	variables.forEach((v) => {
+		v.error = null;
+		v.hasError = false;
+	});
+
 	function resolve(id: string, path: Set<string>): unknown {
 		if (path.has(id)) {
 			errorVars.add(id);
-			throw new Error("Circular dependency");
+			const pathArray = Array.from(path);
+			const cycleStartIdx = pathArray.indexOf(id);
+			const cycle = [...pathArray.slice(cycleStartIdx), id].join(" -> ");
+			throw new Error(`Circular dependency: ${cycle}`);
 		}
 
 		if (id in values) {
@@ -500,6 +509,7 @@ export function evaluateAllVariables(variables: Variable[]) {
 			values[id] = parsed;
 			v.value = parsed;
 			v.hasError = false;
+			v.error = null;
 			return parsed;
 		}
 
@@ -517,7 +527,12 @@ export function evaluateAllVariables(variables: Variable[]) {
 
 			const resolvedVars: Record<string, unknown> = {};
 			referenced.forEach((refId) => {
-				resolvedVars[refId] = resolve(refId, new Set(path));
+				const val = resolve(refId, new Set(path));
+				const refVar = variables.find((x) => x.id === refId);
+				if (refVar?.hasError) {
+					throw new Error(`Dependency '${refId}' has error`);
+				}
+				resolvedVars[refId] = val;
 			});
 
 			const argNames = Object.keys(resolvedVars);
@@ -547,10 +562,14 @@ export function evaluateAllVariables(variables: Variable[]) {
 			values[id] = rawResult;
 			v.value = rawResult;
 			v.hasError = false;
+			v.error = null;
 			return rawResult;
-		} catch (_err) {
+		} catch (err: unknown) {
 			errorVars.add(id);
 			v.hasError = true;
+			const message =
+				err instanceof Error ? err.message : String(err || "Evaluation error");
+			v.error = message;
 			values[id] = 0;
 			v.value = 0;
 			return 0;
