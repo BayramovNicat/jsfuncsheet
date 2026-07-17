@@ -145,6 +145,7 @@ body {
 	cursor: grab;
 	user-select: none;
 	box-shadow: var(--shadow-sm);
+	z-index: 1;
 	transition:
 		border-color 0.15s ease,
 		box-shadow 0.15s ease;
