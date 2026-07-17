@@ -907,7 +907,7 @@ export function drawConnections(): void {
 			const refVar = activeBoard.variables.find((x) => x.id === refId);
 			if (!refVar) return;
 
-			// Define 8 possible output anchors for the source card
+			// Define 4 cardinal output anchors for the source card
 			const srcPoints = [
 				{
 					x: refVar.x + LAYOUT_CONFIG.CARD_WIDTH / 2,
@@ -917,22 +917,10 @@ export function drawConnections(): void {
 				}, // top
 				{
 					x: refVar.x + LAYOUT_CONFIG.CARD_WIDTH,
-					y: refVar.y,
-					dx: 0.707,
-					dy: -0.707,
-				}, // top-right
-				{
-					x: refVar.x + LAYOUT_CONFIG.CARD_WIDTH,
 					y: refVar.y + LAYOUT_CONFIG.CARD_HEIGHT / 2,
 					dx: 1,
 					dy: 0,
 				}, // right
-				{
-					x: refVar.x + LAYOUT_CONFIG.CARD_WIDTH,
-					y: refVar.y + LAYOUT_CONFIG.CARD_HEIGHT,
-					dx: 0.707,
-					dy: 0.707,
-				}, // bottom-right
 				{
 					x: refVar.x + LAYOUT_CONFIG.CARD_WIDTH / 2,
 					y: refVar.y + LAYOUT_CONFIG.CARD_HEIGHT,
@@ -941,40 +929,21 @@ export function drawConnections(): void {
 				}, // bottom
 				{
 					x: refVar.x,
-					y: refVar.y + LAYOUT_CONFIG.CARD_HEIGHT,
-					dx: -0.707,
-					dy: 0.707,
-				}, // bottom-left
-				{
-					x: refVar.x,
 					y: refVar.y + LAYOUT_CONFIG.CARD_HEIGHT / 2,
 					dx: -1,
 					dy: 0,
 				}, // left
-				{ x: refVar.x, y: refVar.y, dx: -0.707, dy: -0.707 }, // top-left
 			];
 
-			// Define 8 possible input anchors for the target card
+			// Define 4 cardinal input anchors for the target card
 			const targetPoints = [
 				{ x: v.x + LAYOUT_CONFIG.CARD_WIDTH / 2, y: v.y, dx: 0, dy: -1 }, // top
-				{
-					x: v.x + LAYOUT_CONFIG.CARD_WIDTH,
-					y: v.y,
-					dx: 0.707,
-					dy: -0.707,
-				}, // top-right
 				{
 					x: v.x + LAYOUT_CONFIG.CARD_WIDTH,
 					y: v.y + LAYOUT_CONFIG.CARD_HEIGHT / 2,
 					dx: 1,
 					dy: 0,
 				}, // right
-				{
-					x: v.x + LAYOUT_CONFIG.CARD_WIDTH,
-					y: v.y + LAYOUT_CONFIG.CARD_HEIGHT,
-					dx: 0.707,
-					dy: 0.707,
-				}, // bottom-right
 				{
 					x: v.x + LAYOUT_CONFIG.CARD_WIDTH / 2,
 					y: v.y + LAYOUT_CONFIG.CARD_HEIGHT,
@@ -983,23 +952,16 @@ export function drawConnections(): void {
 				}, // bottom
 				{
 					x: v.x,
-					y: v.y + LAYOUT_CONFIG.CARD_HEIGHT,
-					dx: -0.707,
-					dy: 0.707,
-				}, // bottom-left
-				{
-					x: v.x,
 					y: v.y + LAYOUT_CONFIG.CARD_HEIGHT / 2,
 					dx: -1,
 					dy: 0,
 				}, // left
-				{ x: v.x, y: v.y, dx: -0.707, dy: -0.707 }, // top-left
 			];
 
 			// Find pair of points with minimum Euclidean distance
 			let minDistance = Number.MAX_VALUE;
-			let bestSrc = srcPoints[2]; // fallback to right
-			let bestTarget = targetPoints[6]; // fallback to left
+			let bestSrc = srcPoints[1]; // fallback to right
+			let bestTarget = targetPoints[3]; // fallback to left
 
 			srcPoints.forEach((s) => {
 				targetPoints.forEach((t) => {
@@ -1018,7 +980,7 @@ export function drawConnections(): void {
 			const y2 = bestTarget.y;
 
 			// Control point scaling relative to distance
-			const controlScale = Math.min(100, Math.max(30, minDistance * 0.25));
+			const controlScale = Math.min(120, Math.max(40, minDistance * 0.4));
 
 			const cp1x = x1 + bestSrc.dx * controlScale;
 			const cp1y = y1 + bestSrc.dy * controlScale;
