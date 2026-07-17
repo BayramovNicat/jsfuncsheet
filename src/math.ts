@@ -1,3 +1,4 @@
+import { getFormulaReferencedVariables } from "./highlight";
 import { saveStateToLocalStorage } from "./state";
 import type { Variable } from "./types";
 
@@ -113,12 +114,11 @@ export function compileFormula(
 	try {
 		const mathKeys = Object.getOwnPropertyNames(Math);
 
-		const referenced: string[] = [];
-		variables.forEach((x) => {
-			if (x.id !== activeId && getVariableRegex(x.id).test(cleanFormulaStr)) {
-				referenced.push(x.id);
-			}
-		});
+		const referenced = getFormulaReferencedVariables(
+			cleanFormulaStr,
+			activeId,
+			variables,
+		);
 
 		const mockValues = referenced.map((refId) => {
 			const found = variables.find((x) => x.id === refId);
@@ -204,12 +204,11 @@ export function evaluateAllVariables(variables: Variable[]) {
 		try {
 			const mathKeys = Object.getOwnPropertyNames(Math);
 
-			const referenced: string[] = [];
-			variables.forEach((x) => {
-				if (x.id !== id && getVariableRegex(x.id).test(formulaStr)) {
-					referenced.push(x.id);
-				}
-			});
+			const referenced = getFormulaReferencedVariables(
+				formulaStr,
+				id,
+				variables,
+			);
 
 			const resolvedVars: Record<string, unknown> = {};
 			referenced.forEach((refId) => {

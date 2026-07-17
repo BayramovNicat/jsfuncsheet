@@ -1,4 +1,4 @@
-import { getVariableRegex } from "./math";
+import { getFormulaReferencedVariables } from "./highlight";
 import type { Board } from "./types";
 import { LAYOUT_CONFIG } from "./types";
 
@@ -239,13 +239,11 @@ export function updateCardHighlights(activeId: string, formulaStr: string) {
 	clearCardHighlights();
 
 	const activeBoard = getActiveBoard();
-	const sortedVars = [...activeBoard.variables]
-		.filter((x) => x.id !== activeId)
-		.sort((a, b) => b.id.length - a.id.length);
-
-	const refIds = sortedVars
-		.filter((x) => getVariableRegex(x.id).test(formulaStr))
-		.map((x) => x.id);
+	const refIds = getFormulaReferencedVariables(
+		formulaStr,
+		activeId,
+		activeBoard.variables,
+	);
 
 	refIds.forEach((id) => {
 		const found = activeBoard.variables.find((x) => x.id === id);

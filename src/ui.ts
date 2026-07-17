@@ -1,10 +1,9 @@
 import { findVacantPosition } from "./canvas";
-import { syntaxHighlight } from "./highlight";
+import { getFormulaReferencedVariables, syntaxHighlight } from "./highlight";
 import {
 	compileFormula,
 	evaluateAllVariables,
 	formatDisplayValue,
-	getVariableRegex,
 	isStaticNumber,
 } from "./math";
 import {
@@ -897,12 +896,11 @@ export function drawConnections(): void {
 		const formulaStr = v.formula.trim();
 		if (!formulaStr) return;
 
-		const referenced: string[] = [];
-		activeBoard.variables.forEach((x) => {
-			if (x.id !== v.id && getVariableRegex(x.id).test(formulaStr)) {
-				referenced.push(x.id);
-			}
-		});
+		const referenced = getFormulaReferencedVariables(
+			formulaStr,
+			v.id,
+			activeBoard.variables,
+		);
 
 		referenced.forEach((refId) => {
 			const refVar = activeBoard.variables.find((x) => x.id === refId);

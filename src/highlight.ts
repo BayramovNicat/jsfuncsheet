@@ -226,10 +226,10 @@ function tokenize(
 			continue;
 		}
 
-		if (/[a-zA-Z_$]/.test(char)) {
+		if (/^[\p{L}_$]/u.test(char)) {
 			const start = i;
 			i++;
-			while (i < len && /[a-zA-Z0-9_$]/.test(formula[i])) {
+			while (i < len && /^[\p{L}\p{N}_$]/u.test(formula[i])) {
 				i++;
 			}
 			const text = formula.slice(start, i);
@@ -346,4 +346,20 @@ export function syntaxHighlight(
 			}
 		})
 		.join("");
+}
+
+// Extract only valid referenced variable IDs outside comments/strings
+export function getFormulaReferencedVariables(
+	formula: string,
+	activeId: string,
+	variables: Variable[],
+): string[] {
+	const tokens = tokenize(formula, activeId, variables);
+	const refIds = new Set<string>();
+	tokens.forEach((t) => {
+		if (t.type === "board-variable") {
+			refIds.add(t.text);
+		}
+	});
+	return Array.from(refIds);
 }
