@@ -2,6 +2,16 @@ import { saveStateToLocalStorage } from "./state";
 import type { Variable } from "./types";
 
 const STATIC_NUMBER_REGEX = /^-?\d+(\.\d+)?$/;
+const regexCache = new Map<string, RegExp>();
+
+export function getVariableRegex(id: string): RegExp {
+	let regex = regexCache.get(id);
+	if (!regex) {
+		regex = new RegExp(`\\b${id}\\b`);
+		regexCache.set(id, regex);
+	}
+	return regex;
+}
 
 // Helper to determine if a formula is a simple number
 export function isStaticNumber(formula: string): boolean {
@@ -91,10 +101,7 @@ export function compileFormula(
 
 		const referenced: string[] = [];
 		variables.forEach((x) => {
-			if (
-				x.id !== activeId &&
-				new RegExp(`\\b${x.id}\\b`).test(cleanFormulaStr)
-			) {
+			if (x.id !== activeId && getVariableRegex(x.id).test(cleanFormulaStr)) {
 				referenced.push(x.id);
 			}
 		});
@@ -185,7 +192,7 @@ export function evaluateAllVariables(variables: Variable[]) {
 
 			const referenced: string[] = [];
 			variables.forEach((x) => {
-				if (x.id !== id && new RegExp(`\\b${x.id}\\b`).test(formulaStr)) {
+				if (x.id !== id && getVariableRegex(x.id).test(formulaStr)) {
 					referenced.push(x.id);
 				}
 			});

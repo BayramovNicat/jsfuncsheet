@@ -1,3 +1,4 @@
+import { getVariableRegex } from "./math";
 import type { Board } from "./types";
 import { LAYOUT_CONFIG } from "./types";
 
@@ -243,7 +244,7 @@ export function updateCardHighlights(activeId: string, formulaStr: string) {
 		.sort((a, b) => b.id.length - a.id.length);
 
 	const refIds = sortedVars
-		.filter((x) => new RegExp(`\\b${x.id}\\b`).test(formulaStr))
+		.filter((x) => getVariableRegex(x.id).test(formulaStr))
 		.map((x) => x.id);
 
 	refIds.forEach((id) => {

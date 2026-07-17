@@ -4,6 +4,7 @@ import {
 	compileFormula,
 	evaluateAllVariables,
 	formatDisplayValue,
+	getVariableRegex,
 	isStaticNumber,
 } from "./math";
 import {
@@ -898,7 +899,7 @@ export function drawConnections(): void {
 
 		const referenced: string[] = [];
 		activeBoard.variables.forEach((x) => {
-			if (x.id !== v.id && new RegExp(`\\b${x.id}\\b`).test(formulaStr)) {
+			if (x.id !== v.id && getVariableRegex(x.id).test(formulaStr)) {
 				referenced.push(x.id);
 			}
 		});

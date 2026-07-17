@@ -44,39 +44,57 @@ const addBoardBtn = document.getElementById(
 initializeUiSelectors(inputsContainer, boardsList);
 
 // Global Drag Mousemove coordinate updates
+let dragFrameRequested = false;
+let lastMouseEvent: MouseEvent | null = null;
+
 window.addEventListener("mousemove", (e) => {
 	const dragId = getActiveDragId();
 	if (!dragId) return;
 
-	const activeBoard = getActiveBoard();
-	const variable = activeBoard.variables.find((v) => v.id === dragId);
-	const card = document.querySelector(
-		`.variable-card[data-id="${dragId}"]`,
-	) as HTMLDivElement;
-	if (!variable || !card) return;
+	lastMouseEvent = e;
 
-	const { startMouseX, startMouseY } = getDragStartMouse();
-	const { startCardX, startCardY } = getDragStartCard();
+	if (!dragFrameRequested) {
+		dragFrameRequested = true;
+		requestAnimationFrame(() => {
+			dragFrameRequested = false;
+			if (!lastMouseEvent) return;
 
-	const snappedPos = calculateDraggedPosition(
-		e.clientX,
-		e.clientY,
-		startMouseX,
-		startMouseY,
-		startCardX,
-		startCardY,
-		inputsContainer.clientWidth,
-		inputsContainer.clientHeight,
-	);
+			const currentDragId = getActiveDragId();
+			if (!currentDragId) return;
 
-	variable.x = snappedPos.x;
-	variable.y = snappedPos.y;
+			const activeBoard = getActiveBoard();
+			const variable = activeBoard.variables.find(
+				(v) => v.id === currentDragId,
+			);
+			const card = document.querySelector(
+				`.variable-card[data-id="${currentDragId}"]`,
+			) as HTMLDivElement;
+			if (!variable || !card) return;
 
-	card.style.left = `${snappedPos.x}px`;
-	card.style.top = `${snappedPos.y}px`;
+			const { startMouseX, startMouseY } = getDragStartMouse();
+			const { startCardX, startCardY } = getDragStartCard();
 
-	// Redraw lines dynamically during drag
-	drawConnections();
+			const snappedPos = calculateDraggedPosition(
+				lastMouseEvent.clientX,
+				lastMouseEvent.clientY,
+				startMouseX,
+				startMouseY,
+				startCardX,
+				startCardY,
+				inputsContainer.clientWidth,
+				inputsContainer.clientHeight,
+			);
+
+			variable.x = snappedPos.x;
+			variable.y = snappedPos.y;
+
+			card.style.left = `${snappedPos.x}px`;
+			card.style.top = `${snappedPos.y}px`;
+
+			// Redraw lines dynamically during drag
+			drawConnections();
+		});
+	}
 });
 
 window.addEventListener("mouseup", () => {
