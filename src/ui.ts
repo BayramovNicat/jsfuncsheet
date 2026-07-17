@@ -621,6 +621,11 @@ function bindVariableCardEvents(
 			line.setAttribute("opacity", "0.9");
 			line.setAttribute("stroke-width", "3.5");
 		});
+
+		if (document.activeElement !== valInput) {
+			autoSizeTextarea(valInput);
+			drawConnections();
+		}
 	});
 
 	card.addEventListener("mouseleave", () => {
@@ -631,6 +636,12 @@ function bindVariableCardEvents(
 			line.setAttribute("opacity", "0.35");
 			line.setAttribute("stroke-width", "2");
 		});
+
+		if (document.activeElement !== valInput) {
+			valInput.style.width = "";
+			valInput.style.height = "";
+			drawConnections();
+		}
 	});
 }
 

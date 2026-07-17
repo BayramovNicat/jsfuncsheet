@@ -26,7 +26,7 @@ export function formatDisplayValue(val: unknown): string {
 	}
 	if (val && typeof val === "object") {
 		try {
-			return JSON.stringify(val);
+			return JSON.stringify(val, null, 2);
 		} catch (_) {
 			return "[Object]";
 		}
