@@ -238,12 +238,19 @@ textarea.var-value-input {
 }
 
 input[type="text"]:focus,
-input[type="number"]:focus,
-textarea.var-value-input:focus {
+input[type="number"]:focus {
 	outline: none !important;
 	border-color: var(--border-focus) !important;
 	border-radius: var(--radius-sm) !important;
 	background: #ffffff !important;
+	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+textarea.var-value-input:focus {
+	outline: none !important;
+	border-color: var(--border-focus) !important;
+	border-radius: var(--radius-sm) !important;
+	background: transparent !important;
 	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
 }
 
@@ -255,7 +262,7 @@ textarea.var-value-input:focus {
 .var-value-input {
 	font-family: var(--font-mono) !important;
 	position: relative;
-	z-index: 1; /* Input sit at z-index 1 */
+	z-index: 2; /* Input sit at z-index 2 (on top) */
 	overflow-x: auto;
 	resize: none;
 	min-height: 24px;
@@ -280,7 +287,8 @@ textarea.var-value-input:focus {
 	height: 100%;
 	padding: 0.3rem 0.5rem;
 	border: 1px solid transparent;
-	background: transparent !important;
+	background: #ffffff !important;
+	border-radius: var(--radius-sm);
 	color: var(--text-primary);
 	font-family: var(--font-mono) !important;
 	font-size: 0.9rem;
@@ -291,7 +299,7 @@ textarea.var-value-input:focus {
 	overflow: hidden;
 	box-sizing: border-box;
 	display: none;
-	z-index: 2; /* Highlight overlay sit at z-index 2 (on top) */
+	z-index: 1; /* Highlight overlay sit at z-index 1 (underneath input text) */
 }
 
 /* Custom Webkit Number Spinners styling */
@@ -652,68 +660,78 @@ textarea.calc-error:focus {
 	color: white !important;
 	font-weight: 700;
 	border-radius: 2px;
-	padding: 0 3px;
+	padding: 2px 3px !important;
+	margin: 0 -3px !important;
 }
 .hl-2 {
 	background-color: #d97706 !important;
 	color: white !important;
 	font-weight: 700;
 	border-radius: 2px;
-	padding: 0 3px;
+	padding: 2px 3px !important;
+	margin: 0 -3px !important;
 }
 .hl-3 {
 	background-color: #059669 !important;
 	color: white !important;
 	font-weight: 700;
 	border-radius: 2px;
-	padding: 0 3px;
+	padding: 2px 3px !important;
+	margin: 0 -3px !important;
 }
 .hl-4 {
 	background-color: #7c3aed !important;
 	color: white !important;
 	font-weight: 700;
 	border-radius: 2px;
-	padding: 0 3px;
+	padding: 2px 3px !important;
+	margin: 0 -3px !important;
 }
 .hl-5 {
 	background-color: #db2777 !important;
 	color: white !important;
 	font-weight: 700;
 	border-radius: 2px;
-	padding: 0 3px;
+	padding: 2px 3px !important;
+	margin: 0 -3px !important;
 }
 .hl-6 {
 	background-color: #0891b2 !important;
 	color: white !important;
 	font-weight: 700;
 	border-radius: 2px;
-	padding: 0 3px;
+	padding: 2px 3px !important;
+	margin: 0 -3px !important;
 }
 .hl-7 {
 	background-color: #e11d48 !important;
 	color: white !important;
 	font-weight: 700;
 	border-radius: 2px;
-	padding: 0 3px;
+	padding: 2px 3px !important;
+	margin: 0 -3px !important;
 }
 .hl-8 {
 	background-color: #0d9488 !important;
 	color: white !important;
 	font-weight: 700;
 	border-radius: 2px;
-	padding: 0 3px;
+	padding: 2px 3px !important;
+	margin: 0 -3px !important;
 }
 .hl-9 {
 	background-color: #65a30d !important;
 	color: white !important;
 	font-weight: 700;
 	border-radius: 2px;
-	padding: 0 3px;
+	padding: 2px 3px !important;
+	margin: 0 -3px !important;
 }
 .hl-10 {
 	background-color: #4f46e5 !important;
 	color: white !important;
 	font-weight: 700;
 	border-radius: 2px;
-	padding: 0 3px;
+	padding: 2px 3px !important;
+	margin: 0 -3px !important;
 }
