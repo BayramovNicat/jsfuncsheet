@@ -1,8 +1,10 @@
 import type { Variable } from './types';
 
+const STATIC_NUMBER_REGEX = /^-?\d+(\.\d+)?$/;
+
 // Helper to determine if a formula is a simple number
 export function isStaticNumber(formula: string): boolean {
-  return /^-?\d+(\.\d+)?$/.test(formula.trim());
+  return STATIC_NUMBER_REGEX.test(formula.trim());
 }
 
 // Format displays: omit decimals if integer, show up to 2 decimal places otherwise
@@ -15,6 +17,20 @@ export function formatDisplayValue(val: number): string {
     return val.toFixed(1);
   }
   return formatted;
+}
+
+// Helper to create evaluate Function instance dynamically
+function compileFunctionContext(
+  formulaStr: string,
+  mathKeys: string[],
+  argNames: string[]
+): Function {
+  const hasReturn = /\breturn\b/.test(formulaStr);
+  const functionBody = hasReturn 
+    ? `"use strict"; ${formulaStr}`
+    : `"use strict"; return (${formulaStr});`;
+
+  return new Function(...mathKeys, ...argNames, functionBody);
 }
 
 // Live JS Compiler / Syntax Check
@@ -32,7 +48,6 @@ export function compileFormula(formulaStr: string, activeId: string, variables: 
     const mathKeys = Object.getOwnPropertyNames(Math);
     const mathValues = mathKeys.map((key) => (Math as any)[key]);
     
-    // Scan variables referenced in this formula
     const referenced: string[] = [];
     variables.forEach((x) => {
       if (x.id !== activeId && new RegExp(`\\b${x.id}\\b`).test(cleanFormulaStr)) {
@@ -41,14 +56,7 @@ export function compileFormula(formulaStr: string, activeId: string, variables: 
     });
 
     const mockValues = referenced.map(() => 0);
-
-    // Support both simple math expressions and complex returning code block strings
-    const hasReturn = /\breturn\b/.test(cleanFormulaStr);
-    const functionBody = hasReturn 
-      ? `"use strict"; ${cleanFormulaStr}`
-      : `"use strict"; return (${cleanFormulaStr});`;
-
-    const fn = new Function(...mathKeys, ...referenced, functionBody);
+    const fn = compileFunctionContext(cleanFormulaStr, mathKeys, referenced);
     fn(...mathValues, ...mockValues);
 
     return { error: null };
@@ -64,7 +72,6 @@ export function syntaxHighlight(formula: string, activeId: string, variables: Va
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  // Sort variables descending by length to prevent partial matching (e.g. matching 'A' in 'A1')
   const sortedVars = [...variables]
     .filter(x => x.id !== activeId)
     .sort((a, b) => b.id.length - a.id.length);
@@ -131,12 +138,7 @@ export function evaluateAllVariables(variables: Variable[]) {
       const argNames = Object.keys(resolvedVars);
       const argValues = Object.values(resolvedVars);
 
-      const hasReturn = /\breturn\b/.test(formulaStr);
-      const functionBody = hasReturn 
-        ? `"use strict"; ${formulaStr}`
-        : `"use strict"; return (${formulaStr});`;
-
-      const fn = new Function(...mathKeys, ...argNames, functionBody);
+      const fn = compileFunctionContext(formulaStr, mathKeys, argNames);
       const rawResult = fn(...mathValues, ...argValues);
 
       if (rawResult === null || rawResult === undefined || typeof rawResult !== 'number' || isNaN(rawResult) || !isFinite(rawResult)) {

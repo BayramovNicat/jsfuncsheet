@@ -13,3 +13,18 @@ export interface Board {
   name: string;
   variables: Variable[];
 }
+
+export const LAYOUT_CONFIG = {
+  CARD_WIDTH: 240,
+  CARD_HEIGHT: 60,
+  COL_PITCH: 260,
+  ROW_PITCH: 80,
+  SNAP_GRID: 20,
+  MARGIN: 20,
+  FOOTER_HEIGHT: 48,
+  CANVAS_MAX_DEPTH: 5000,
+  CHAR_WIDTH: 9.5,
+  MIN_VAL_INPUT_WIDTH: 214,
+  MAX_VAL_INPUT_HEIGHT: 300,
+  ALPHABET: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+} as const;

@@ -1,4 +1,5 @@
 import type { Variable } from './types';
+import { LAYOUT_CONFIG } from './types';
 
 // Find first vacant position (scanning vertically within visible bounds, then shifting horizontally, and finally going deeper)
 export function findVacantPosition(
@@ -6,15 +7,13 @@ export function findVacantPosition(
   containerWidth: number,
   containerHeight: number
 ): { x: number; y: number } {
-  const cardWidth = 240;
-  const cardHeight = 60;
-
-  // Subtract footer tab bar height (48px) from clientHeight measurements
-  const activeHeight = containerHeight - 48;
+  const cardWidth = LAYOUT_CONFIG.CARD_WIDTH;
+  const cardHeight = LAYOUT_CONFIG.CARD_HEIGHT;
+  const activeHeight = containerHeight - LAYOUT_CONFIG.FOOTER_HEIGHT;
 
   // Phase 1: Scan vertically down column 1, then column 2, etc. (strictly inside visible screen space)
-  for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
-    for (let y = 20; y < activeHeight - cardHeight; y += 80) {
+  for (let x = LAYOUT_CONFIG.MARGIN; x < containerWidth - cardWidth + LAYOUT_CONFIG.MARGIN; x += LAYOUT_CONFIG.COL_PITCH) {
+    for (let y = LAYOUT_CONFIG.MARGIN; y < activeHeight - cardHeight; y += LAYOUT_CONFIG.ROW_PITCH) {
       const overlaps = variables.some((v) => {
         return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
                  y + cardHeight <= v.y || v.y + cardHeight <= y);
@@ -26,9 +25,9 @@ export function findVacantPosition(
   }
 
   // Phase 2: If the entire visible grid is fully occupied, start placing cards below the fold row-by-row
-  const startY = Math.max(20, Math.floor((activeHeight - cardHeight) / 80) * 80 + 20);
-  for (let y = startY; y < 5000 - cardHeight; y += 80) {
-    for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
+  const startY = Math.max(LAYOUT_CONFIG.MARGIN, Math.floor((activeHeight - cardHeight) / LAYOUT_CONFIG.ROW_PITCH) * LAYOUT_CONFIG.ROW_PITCH + LAYOUT_CONFIG.MARGIN);
+  for (let y = startY; y < LAYOUT_CONFIG.CANVAS_MAX_DEPTH - cardHeight; y += LAYOUT_CONFIG.ROW_PITCH) {
+    for (let x = LAYOUT_CONFIG.MARGIN; x < containerWidth - cardWidth + LAYOUT_CONFIG.MARGIN; x += LAYOUT_CONFIG.COL_PITCH) {
       const overlaps = variables.some((v) => {
         return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
                  y + cardHeight <= v.y || v.y + cardHeight <= y);
@@ -39,7 +38,7 @@ export function findVacantPosition(
     }
   }
   
-  return { x: 20, y: 20 };
+  return { x: LAYOUT_CONFIG.MARGIN, y: LAYOUT_CONFIG.MARGIN };
 }
 
 // Snap coordinates to 20px grid and keep within drag bounds
@@ -52,8 +51,8 @@ export function calculateDraggedPosition(
   startCardY: number,
   containerWidth: number,
   containerHeight: number,
-  cardWidth = 240,
-  cardHeight = 60
+  cardWidth = LAYOUT_CONFIG.CARD_WIDTH,
+  cardHeight = LAYOUT_CONFIG.CARD_HEIGHT
 ): { x: number; y: number } {
   const dx = clientX - startMouseX;
   const dy = clientY - startMouseY;
@@ -67,8 +66,8 @@ export function calculateDraggedPosition(
   newX = Math.max(0, Math.min(newX, maxX));
   newY = Math.max(0, Math.min(newY, maxY));
 
-  const snappedX = Math.round(newX / 20) * 20;
-  const snappedY = Math.round(newY / 20) * 20;
+  const snappedX = Math.round(newX / LAYOUT_CONFIG.SNAP_GRID) * LAYOUT_CONFIG.SNAP_GRID;
+  const snappedY = Math.round(newY / LAYOUT_CONFIG.SNAP_GRID) * LAYOUT_CONFIG.SNAP_GRID;
 
   return { x: snappedX, y: snappedY };
 }

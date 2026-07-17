@@ -1,3 +1,4 @@
+import { LAYOUT_CONFIG } from './types';
 import {
   isStaticNumber,
   formatDisplayValue,
@@ -53,7 +54,7 @@ export function getDragStartCard() {
   return { startCardX, startCardY };
 }
 
-// Selectors helper (configured by main)
+// Selectors helper
 let inputsContainer: HTMLDivElement;
 let boardsList: HTMLDivElement;
 
@@ -63,32 +64,37 @@ export function initializeUiSelectors(inputs: HTMLDivElement, boards: HTMLDivEle
 }
 
 // Updates the display value and errors of blurred inputs
-export function updateInputsDisplay() {
+export function updateInputsDisplay(): void {
   const activeBoard = getActiveBoard();
   activeBoard.variables.forEach((v) => {
     const inputEl = document.querySelector(`.var-value-input[data-id="${v.id}"]`) as HTMLTextAreaElement;
-    if (inputEl && document.activeElement !== inputEl) {
-      if (v.hasError) {
-        inputEl.value = 'Error';
-        inputEl.classList.add('calc-error');
-      } else {
-        inputEl.value = formatDisplayValue(v.value);
-        inputEl.classList.remove('calc-error');
-      }
+    if (!inputEl || document.activeElement === inputEl) return;
+
+    if (v.hasError) {
+      inputEl.value = 'Error';
+      inputEl.classList.add('calc-error');
+    } else {
+      inputEl.value = formatDisplayValue(v.value);
+      inputEl.classList.remove('calc-error');
     }
   });
 }
 
 // Auto size textareas
-export function autoSizeTextarea(inputEl: HTMLTextAreaElement) {
+export function autoSizeTextarea(inputEl: HTMLTextAreaElement): void {
   inputEl.style.height = 'auto';
-  const scrollHeight = inputEl.scrollHeight;
-  const calculatedHeight = Math.max(24, Math.min(scrollHeight, 300));
+  const calculatedHeight = Math.max(
+    LAYOUT_CONFIG.CARD_HEIGHT - 36,
+    Math.min(inputEl.scrollHeight, LAYOUT_CONFIG.MAX_VAL_INPUT_HEIGHT)
+  );
   inputEl.style.height = `${calculatedHeight}px`;
 
   const lines = inputEl.value.split('\n');
   const maxLineLength = Math.max(...lines.map(line => line.length));
-  const calculatedWidth = Math.max(214, (maxLineLength + 4) * 9.5);
+  const calculatedWidth = Math.max(
+    LAYOUT_CONFIG.MIN_VAL_INPUT_WIDTH,
+    (maxLineLength + 4) * LAYOUT_CONFIG.CHAR_WIDTH
+  );
   inputEl.style.width = `${calculatedWidth}px`;
 
   const cardEl = inputEl.closest('.variable-card');
@@ -102,7 +108,7 @@ export function autoSizeTextarea(inputEl: HTMLTextAreaElement) {
 }
 
 // Add a single variable entry
-export function addNewVariable() {
+export function addNewVariable(): void {
   const activeBoard = getActiveBoard();
   const nextId = generateNextId();
   const pos = findVacantPosition(
@@ -127,7 +133,7 @@ export function addNewVariable() {
 }
 
 // Delete variable card State mutation
-export function deleteVariable(id: string) {
+export function deleteVariable(id: string): void {
   const activeBoard = getActiveBoard();
   const activeTT = getActiveTooltipTarget();
   
@@ -141,59 +147,234 @@ export function deleteVariable(id: string) {
 }
 
 // Insert Variable ID at active textarea caret
-export function insertBadgeId(id: string) {
+export function insertBadgeId(id: string): void {
   const activeBoard = getActiveBoard();
   const active = document.activeElement as HTMLTextAreaElement | null;
-  if (active && active.classList.contains('var-value-input')) {
-    const varId = active.getAttribute('data-id');
-    const variable = activeBoard.variables.find((v) => v.id === varId);
-    if (!variable || variable.id === id) return;
+  if (!active || !active.classList.contains('var-value-input')) return;
 
-    const start = active.selectionStart ?? active.value.length;
-    const end = active.selectionEnd ?? active.value.length;
-    const oldVal = active.value;
+  const varId = active.getAttribute('data-id');
+  const variable = activeBoard.variables.find((v) => v.id === varId);
+  if (!variable || variable.id === id) return;
 
-    active.value = oldVal.substring(0, start) + id + oldVal.substring(end);
-    variable.formula = active.value;
+  const start = active.selectionStart ?? active.value.length;
+  const end = active.selectionEnd ?? active.value.length;
+  const oldVal = active.value;
+
+  active.value = oldVal.substring(0, start) + id + oldVal.substring(end);
+  variable.formula = active.value;
+  
+  const newPos = start + id.length;
+  active.setSelectionRange(newPos, newPos);
+
+  autoSizeTextarea(active);
+  
+  const cardEl = active.closest('.variable-card');
+  if (cardEl) {
+    const overlayEl = cardEl.querySelector('.value-highlight-overlay') as HTMLDivElement;
+    if (overlayEl) {
+      overlayEl.innerHTML = syntaxHighlight(active.value, variable.id, activeBoard.variables);
+      overlayEl.scrollLeft = active.scrollLeft;
+      overlayEl.scrollTop = active.scrollTop;
+    }
+  }
+
+  updateCardHighlights(variable.id, active.value);
+
+  const check = compileFormula(active.value, variable.id, activeBoard.variables);
+  if (check.error) {
+    active.setAttribute('data-tooltip', `⚠️ ${check.error}`);
+    active.classList.add('calc-error');
+    showTooltip(active);
+  } else {
+    active.removeAttribute('data-tooltip');
+    active.classList.remove('calc-error');
+    hideTooltip();
+  }
+
+  evaluateAllVariables(activeBoard.variables);
+  updateInputsDisplay();
+}
+
+// Separate listener hooks definition for variables (reduces nesting size in render)
+function bindVariableCardEvents(
+  card: HTMLDivElement,
+  variable: any,
+  activeBoard: any,
+  labelSpan: HTMLSpanElement,
+  valInput: HTMLTextAreaElement,
+  overlayEl: HTMLDivElement,
+  deleteBtn: HTMLButtonElement,
+  badgeBtn: HTMLDivElement
+) {
+  // Drag handling
+  card.addEventListener('mousedown', (e) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === 'INPUT' || 
+      target.tagName === 'TEXTAREA' || 
+      target.classList.contains('btn-delete') || 
+      target.tagName === 'svg' || 
+      target.tagName === 'path'
+    ) {
+      return;
+    }
     
-    // Position cursor right after inserted text
-    const newPos = start + id.length;
-    active.setSelectionRange(newPos, newPos);
+    e.preventDefault();
+    activeDragId = variable.id;
+    startMouseX = e.clientX;
+    startMouseY = e.clientY;
+    startCardX = variable.x;
+    startCardY = variable.y;
+    card.style.zIndex = '50';
+  });
 
-    autoSizeTextarea(active);
-    
-    // Sync syntax highlighter overlay
-    const cardEl = active.closest('.variable-card');
-    if (cardEl) {
-      const overlayEl = cardEl.querySelector('.value-highlight-overlay') as HTMLDivElement;
-      if (overlayEl) {
-        overlayEl.innerHTML = syntaxHighlight(active.value, variable.id, activeBoard.variables);
-        overlayEl.scrollLeft = active.scrollLeft;
-        overlayEl.scrollTop = active.scrollTop;
+  // Rename label
+  labelSpan.addEventListener('dblclick', () => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'var-label-input';
+    input.value = variable.label;
+
+    const saveLabel = () => {
+      variable.label = input.value.trim() || `Variable ${variable.id}`;
+      renderVariables();
+      updateInputsDisplay();
+    };
+
+    input.addEventListener('blur', saveLabel);
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        input.blur();
       }
+    });
+
+    labelSpan.replaceWith(input);
+    input.focus();
+    input.select();
+  });
+
+  badgeBtn.addEventListener('mousedown', (e) => {
+    const active = document.activeElement;
+    if (active && active.classList.contains('var-value-input')) {
+      e.preventDefault();
+      insertBadgeId(variable.id);
     }
+  });
 
-    updateCardHighlights(variable.id, active.value);
+  valInput.addEventListener('scroll', () => {
+    overlayEl.scrollLeft = valInput.scrollLeft;
+    overlayEl.scrollTop = valInput.scrollTop;
+  });
 
-    // Live JS compiler check
-    const check = compileFormula(active.value, variable.id, activeBoard.variables);
+  valInput.addEventListener('focus', () => {
+    valInput.value = variable.formula;
+    valInput.classList.remove('calc-error');
+    autoSizeTextarea(valInput);
+
+    overlayEl.style.display = 'block';
+    overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
+    overlayEl.scrollLeft = valInput.scrollLeft;
+    overlayEl.scrollTop = valInput.scrollTop;
+
+    updateCardHighlights(variable.id, valInput.value);
+
+    const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
     if (check.error) {
-      active.setAttribute('data-tooltip', `⚠️ ${check.error}`);
-      active.classList.add('calc-error');
-      showTooltip(active);
+      valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
+      valInput.classList.add('calc-error');
+      showTooltip(valInput);
     } else {
-      active.removeAttribute('data-tooltip');
-      active.classList.remove('calc-error');
-      hideTooltip();
+      valInput.removeAttribute('data-tooltip');
+      valInput.classList.remove('calc-error');
     }
+  });
 
+  valInput.addEventListener('blur', () => {
+    valInput.style.width = '';
+    valInput.style.height = '';
+    valInput.removeAttribute('data-tooltip');
+    overlayEl.style.width = '';
+    overlayEl.style.height = '';
+    overlayEl.style.display = 'none';
+    clearCardHighlights();
+    hideTooltip();
+    
     evaluateAllVariables(activeBoard.variables);
     updateInputsDisplay();
-  }
+  });
+
+  valInput.addEventListener('input', () => {
+    variable.formula = valInput.value;
+    autoSizeTextarea(valInput);
+
+    overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
+    overlayEl.scrollLeft = valInput.scrollLeft;
+    overlayEl.scrollTop = valInput.scrollTop;
+
+    updateCardHighlights(variable.id, valInput.value);
+
+    const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
+    if (check.error) {
+      valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
+      valInput.classList.add('calc-error');
+      showTooltip(valInput);
+    } else {
+      valInput.removeAttribute('data-tooltip');
+      valInput.classList.remove('calc-error');
+      hideTooltip();
+    }
+    
+    evaluateAllVariables(activeBoard.variables);
+    updateInputsDisplay();
+  });
+
+  valInput.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      const isNum = isStaticNumber(valInput.value);
+      if (isNum) {
+        e.preventDefault();
+        let val = parseFloat(valInput.value);
+        if (isNaN(val)) val = 0;
+        
+        const step = e.shiftKey ? 10 : (e.altKey ? 0.1 : 1);
+        val += e.key === 'ArrowUp' ? step : -step;
+        
+        valInput.value = parseFloat(val.toFixed(4)).toString();
+        variable.formula = valInput.value;
+        
+        autoSizeTextarea(valInput);
+        overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
+        overlayEl.scrollLeft = valInput.scrollLeft;
+        overlayEl.scrollTop = valInput.scrollTop;
+        updateCardHighlights(variable.id, valInput.value);
+
+        const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
+        if (check.error) {
+          valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
+          valInput.classList.add('calc-error');
+          showTooltip(valInput);
+        } else {
+          valInput.removeAttribute('data-tooltip');
+          valInput.classList.remove('calc-error');
+          hideTooltip();
+        }
+
+        evaluateAllVariables(activeBoard.variables);
+        updateInputsDisplay();
+      }
+    } else if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      valInput.blur();
+    } else if (e.key === 'Escape') {
+      valInput.blur();
+    }
+  });
+
+  deleteBtn.addEventListener('click', () => deleteVariable(variable.id));
 }
 
 // Render dynamic card entries
-export function renderVariables() {
+export function renderVariables(): void {
   const activeBoard = getActiveBoard();
   inputsContainer.innerHTML = '';
 
@@ -232,192 +413,15 @@ export function renderVariables() {
     const deleteBtn = card.querySelector('.btn-delete') as HTMLButtonElement;
     const badgeBtn = card.querySelector('.variable-badge') as HTMLDivElement;
 
-    // Mouse Press -> Drag nodes bootstrap coords
-    card.addEventListener('mousedown', (e) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' || 
-        target.tagName === 'TEXTAREA' || 
-        target.classList.contains('btn-delete') || 
-        target.tagName === 'svg' || 
-        target.tagName === 'path'
-      ) {
-        return;
-      }
-      
-      e.preventDefault();
-      activeDragId = variable.id;
-      startMouseX = e.clientX;
-      startMouseY = e.clientY;
-      startCardX = variable.x;
-      startCardY = variable.y;
-      
-      card.style.zIndex = '50';
-    });
-
-    // Double click to edit title labels
-    labelSpan.addEventListener('dblclick', () => {
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'var-label-input';
-      input.value = variable.label;
-
-      const saveLabel = () => {
-        variable.label = input.value.trim() || `Variable ${variable.id}`;
-        renderVariables();
-        updateInputsDisplay();
-      };
-
-      input.addEventListener('blur', saveLabel);
-      input.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') {
-          input.blur();
-        }
-      });
-
-      labelSpan.replaceWith(input);
-      input.focus();
-      input.select();
-    });
-
-    badgeBtn.addEventListener('mousedown', (e) => {
-      const active = document.activeElement;
-      if (active && active.classList.contains('var-value-input')) {
-        e.preventDefault();
-        insertBadgeId(variable.id);
-      }
-    });
-
-    // Synchronize textarea scroll position to overlay
-    valInput.addEventListener('scroll', () => {
-      overlayEl.scrollLeft = valInput.scrollLeft;
-      overlayEl.scrollTop = valInput.scrollTop;
-    });
-
-    // Textarea inputs config
-    valInput.addEventListener('focus', () => {
-      valInput.value = variable.formula;
-      valInput.classList.remove('calc-error');
-      
-      autoSizeTextarea(valInput);
-
-      overlayEl.style.display = 'block';
-      overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
-      overlayEl.scrollLeft = valInput.scrollLeft;
-      overlayEl.scrollTop = valInput.scrollTop;
-
-      updateCardHighlights(variable.id, valInput.value);
-
-      const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
-      if (check.error) {
-        valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
-        valInput.classList.add('calc-error');
-        showTooltip(valInput);
-      } else {
-        valInput.removeAttribute('data-tooltip');
-        valInput.classList.remove('calc-error');
-      }
-    });
-
-    valInput.addEventListener('blur', () => {
-      valInput.style.width = '';
-      valInput.style.height = '';
-      valInput.removeAttribute('data-tooltip');
-      overlayEl.style.width = '';
-      overlayEl.style.height = '';
-      overlayEl.style.display = 'none';
-      clearCardHighlights();
-      hideTooltip();
-      
-      evaluateAllVariables(activeBoard.variables);
-      updateInputsDisplay();
-    });
-
-    valInput.addEventListener('input', () => {
-      variable.formula = valInput.value;
-      autoSizeTextarea(valInput);
-
-      overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
-      overlayEl.scrollLeft = valInput.scrollLeft;
-      overlayEl.scrollTop = valInput.scrollTop;
-
-      updateCardHighlights(variable.id, valInput.value);
-
-      const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
-      if (check.error) {
-        valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
-        valInput.classList.add('calc-error');
-        showTooltip(valInput);
-      } else {
-        valInput.removeAttribute('data-tooltip');
-        valInput.classList.remove('calc-error');
-        hideTooltip();
-      }
-      
-      evaluateAllVariables(activeBoard.variables);
-      updateInputsDisplay();
-    });
-
-    valInput.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        const isNum = isStaticNumber(valInput.value);
-        if (isNum) {
-          e.preventDefault();
-          let val = parseFloat(valInput.value);
-          if (isNaN(val)) val = 0;
-          
-          let step = 1;
-          if (e.shiftKey) {
-            step = 10;
-          } else if (e.altKey) {
-            step = 0.1;
-          }
-          
-          if (e.key === 'ArrowUp') {
-            val += step;
-          } else {
-            val -= step;
-          }
-          
-          valInput.value = parseFloat(val.toFixed(4)).toString();
-          variable.formula = valInput.value;
-          
-          autoSizeTextarea(valInput);
-          overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
-          overlayEl.scrollLeft = valInput.scrollLeft;
-          overlayEl.scrollTop = valInput.scrollTop;
-          updateCardHighlights(variable.id, valInput.value);
-
-          const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
-          if (check.error) {
-            valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
-            valInput.classList.add('calc-error');
-            showTooltip(valInput);
-          } else {
-            valInput.removeAttribute('data-tooltip');
-            valInput.classList.remove('calc-error');
-            hideTooltip();
-          }
-
-          evaluateAllVariables(activeBoard.variables);
-          updateInputsDisplay();
-        }
-      } else if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        valInput.blur();
-      } else if (e.key === 'Escape') {
-        valInput.blur();
-      }
-    });
-
-    deleteBtn.addEventListener('click', () => deleteVariable(variable.id));
+    // Bind event hooks cleanly
+    bindVariableCardEvents(card, variable, activeBoard, labelSpan, valInput, overlayEl, deleteBtn, badgeBtn);
 
     inputsContainer.appendChild(card);
   });
 }
 
 // Render the bottom board toggler tabs
-export function renderTabsList() {
+export function renderTabsList(): void {
   boardsList.innerHTML = '';
   const boards = getBoards();
   const activeBoardId = getActiveBoardId();
@@ -426,6 +430,7 @@ export function renderTabsList() {
     const tab = document.createElement('div');
     tab.className = `board-tab ${board.id === activeBoardId ? 'active' : ''}`;
     
+    // Switch active board on click
     tab.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
       if (target.closest('.btn-tab-close') || target.tagName === 'INPUT') {
@@ -441,6 +446,7 @@ export function renderTabsList() {
       updateInputsDisplay();
     });
 
+    // Double click to rename tab inline
     tab.addEventListener('dblclick', () => {
       const span = tab.querySelector('.board-tab-name-span') as HTMLSpanElement;
       if (!span) return;
@@ -500,7 +506,7 @@ export function renderTabsList() {
   });
 }
 
-export function createNewBoard() {
+export function createNewBoard(): void {
   const allBoards = getBoards();
   const newId = `board-${Date.now()}`;
   const newName = `Board ${allBoards.length + 1}`;

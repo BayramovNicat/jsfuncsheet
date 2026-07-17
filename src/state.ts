@@ -1,4 +1,5 @@
 import type { Board } from './types';
+import { LAYOUT_CONFIG } from './types';
 
 // Default seeded template boards data
 let boards: Board[] = [
@@ -44,15 +45,13 @@ export function setActiveBoardId(id: string) {
 }
 
 export function getActiveBoard(): Board {
-  const b = boards.find(x => x.id === activeBoardId);
-  if (b) return b;
-  return boards[0];
+  return boards.find(x => x.id === activeBoardId) ?? boards[0];
 }
 
 // Generate next available single/double letter Variable ID
 export function generateNextId(): string {
   const activeBoard = getActiveBoard();
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const alphabet = LAYOUT_CONFIG.ALPHABET;
   const existingIds = activeBoard.variables.map((v) => v.id);
 
   for (let i = 0; i < alphabet.length; i++) {
