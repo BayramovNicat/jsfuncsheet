@@ -86,6 +86,40 @@ function formatDisplayValue(val: number): string {
   return formatted;
 }
 
+// Live JS Compiler / Syntax Check
+function compileFormula(formulaStr: string, activeId: string, variables: Variable[]): { error: string | null } {
+  const cleanFormulaStr = formulaStr.trim();
+  if (!cleanFormulaStr) {
+    return { error: 'Empty expression' };
+  }
+  
+  if (isStaticNumber(cleanFormulaStr)) {
+    return { error: null };
+  }
+
+  try {
+    const mathKeys = Object.getOwnPropertyNames(Math);
+    const mathValues = mathKeys.map((key) => (Math as any)[key]);
+    
+    // Scan variables referenced in this formula
+    const referenced: string[] = [];
+    variables.forEach((x) => {
+      if (x.id !== activeId && new RegExp(`\\b${x.id}\\b`).test(cleanFormulaStr)) {
+        referenced.push(x.id);
+      }
+    });
+
+    const mockValues = referenced.map(() => 0);
+
+    const fn = new Function(...mathKeys, ...referenced, `"use strict"; return (${cleanFormulaStr});`);
+    fn(...mathValues, ...mockValues);
+
+    return { error: null };
+  } catch (err: any) {
+    return { error: err.message || 'Invalid syntax' };
+  }
+}
+
 // Helper to generate next sequential Variable ID for active board
 function getNextVariableId(): string {
   const activeBoard = getActiveBoard();
@@ -297,6 +331,7 @@ function findVacantPosition(): { x: number; y: number } {
   const cardHeight = 60;
   
   const containerWidth = inputsContainer.clientWidth || window.innerWidth || 800;
+  // Subtract footer tab bar height (48px) from clientHeight measurements
   const containerHeight = (inputsContainer.clientHeight || window.innerHeight || 600) - 48;
 
   // Phase 1: Scan vertically down column 1, then column 2, etc. (strictly inside visible screen space)
@@ -397,6 +432,19 @@ function insertBadgeId(id: string) {
     }
 
     updateCardHighlights(variable.id, active.value);
+
+    // Dynamic compiler warning check
+    const check = compileFormula(active.value, variable.id, activeBoard.variables);
+    if (check.error) {
+      active.setAttribute('data-tooltip', `⚠️ ${check.error}`);
+      active.classList.add('calc-error');
+      showTooltip(active);
+    } else {
+      active.removeAttribute('data-tooltip');
+      active.classList.remove('calc-error');
+      hideTooltip();
+    }
+
     evaluateAll();
     updateInputsDisplay();
   }
@@ -426,7 +474,7 @@ function renderVariables() {
               <span class="var-label-span">${variable.label}</span>
             </div>
             <button class="btn-delete" data-tooltip="Delete Variable" aria-label="Delete">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
             </button>
           </div>
           <div class="var-value-wrapper">
@@ -512,13 +560,26 @@ function renderVariables() {
       overlayEl.scrollLeft = valInput.scrollLeft;
 
       updateCardHighlights(variable.id, valInput.value);
+
+      // Trigger live compiler check on Focus
+      const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
+      if (check.error) {
+        valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
+        valInput.classList.add('calc-error');
+        showTooltip(valInput);
+      } else {
+        valInput.removeAttribute('data-tooltip');
+        valInput.classList.remove('calc-error');
+      }
     });
 
     valInput.addEventListener('blur', () => {
       valInput.style.width = '';
+      valInput.removeAttribute('data-tooltip');
       overlayEl.style.width = '';
       overlayEl.style.display = 'none';
       clearCardHighlights();
+      hideTooltip();
       
       evaluateAll();
       updateInputsDisplay();
@@ -532,6 +593,18 @@ function renderVariables() {
       overlayEl.scrollLeft = valInput.scrollLeft;
 
       updateCardHighlights(variable.id, valInput.value);
+
+      // Trigger live compiler check on Input
+      const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
+      if (check.error) {
+        valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
+        valInput.classList.add('calc-error');
+        showTooltip(valInput);
+      } else {
+        valInput.removeAttribute('data-tooltip');
+        valInput.classList.remove('calc-error');
+        hideTooltip();
+      }
       
       evaluateAll();
       updateInputsDisplay();
@@ -565,6 +638,18 @@ function renderVariables() {
           overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id);
           overlayEl.scrollLeft = valInput.scrollLeft;
           updateCardHighlights(variable.id, valInput.value);
+
+          // Verify compiler logic on Keyboard stepper updates
+          const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
+          if (check.error) {
+            valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
+            valInput.classList.add('calc-error');
+            showTooltip(valInput);
+          } else {
+            valInput.removeAttribute('data-tooltip');
+            valInput.classList.remove('calc-error');
+            hideTooltip();
+          }
 
           evaluateAll();
           updateInputsDisplay();
@@ -642,6 +727,7 @@ function hideTooltip() {
   activeTooltipTarget = null;
 }
 
+// Export position calculations cleanly
 function repositionTooltip() {
   if (!activeTooltipTarget) return;
 
