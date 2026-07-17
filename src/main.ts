@@ -1,54 +1,32 @@
 import './style.css';
-
-interface Variable {
-  id: string;      // Unique Identifier (e.g., A, B, C)
-  label: string;   // Friendly display label
-  formula: string; // Underlying formula (e.g., "A * B" or "100")
-  value: number;   // Calculated value
-  hasError: boolean;
-  x: number;       // absolute X position on canvas
-  y: number;       // absolute Y position on canvas
-}
-
-interface Board {
-  id: string;
-  name: string;
-  variables: Variable[];
-}
-
-// Initial default boards data
-let boards: Board[] = [
-  {
-    id: 'pricing',
-    name: 'Pricing Estimator',
-    variables: [
-      { id: 'A', label: 'Base Project Cost', formula: '500', value: 500, hasError: false, x: 20, y: 20 },
-      { id: 'B', label: 'Hourly Rate', formula: '75', value: 75, hasError: false, x: 20, y: 100 },
-      { id: 'C', label: 'Estimated Hours', formula: '40', value: 40, hasError: false, x: 20, y: 180 },
-      { id: 'D', label: 'Discount Percentage', formula: '10', value: 10, hasError: false, x: 20, y: 260 },
-      { id: 'E', label: 'Total Cost', formula: 'const subtotal = B * C;\nconst saving = subtotal * (D / 100);\nreturn A + subtotal - saving;', value: 3200, hasError: false, x: 280, y: 20 }
-    ]
-  },
-  {
-    id: 'split',
-    name: 'Dinner Splitter',
-    variables: [
-      { id: 'A', label: 'Total Dinner Bill', formula: '120', value: 120, hasError: false, x: 20, y: 20 },
-      { id: 'B', label: 'Number of Friends', formula: '4', value: 4, hasError: false, x: 20, y: 100 },
-      { id: 'C', label: 'Tip Percentage', formula: '15', value: 15, hasError: false, x: 20, y: 180 },
-      { id: 'D', label: 'Cost Per Friend', formula: '(A * (1 + C / 100)) / B', value: 34.5, hasError: false, x: 280, y: 20 }
-    ]
-  }
-];
-
-let activeBoardId = 'pricing';
-
-// Dragging tracking state
-let activeDragId: string | null = null;
-let startMouseX = 0;
-let startMouseY = 0;
-let startCardX = 0;
-let startCardY = 0;
+import {
+  isStaticNumber,
+  formatDisplayValue,
+  compileFormula,
+  syntaxHighlight,
+  evaluateAllVariables
+} from './math';
+import {
+  getBoards,
+  setBoards,
+  getActiveBoardId,
+  setActiveBoardId,
+  getActiveBoard,
+  generateNextId,
+  updateCardHighlights,
+  clearCardHighlights
+} from './state';
+import {
+  findVacantPosition,
+  calculateDraggedPosition
+} from './canvas';
+import {
+  initializeTooltip,
+  showTooltip,
+  hideTooltip,
+  repositionTooltip,
+  getActiveTooltipTarget
+} from './tooltip';
 
 // DOM Selectors
 const inputsContainer = document.getElementById('inputs-container') as HTMLDivElement;
@@ -56,196 +34,14 @@ const addInputBtn = document.getElementById('add-input-btn') as HTMLButtonElemen
 const boardsList = document.getElementById('boards-list') as HTMLDivElement;
 const addBoardBtn = document.getElementById('add-board-btn') as HTMLButtonElement;
 
-// Create global tooltip element
-const tooltipEl = document.createElement('div');
-tooltipEl.id = 'app-tooltip';
-document.body.appendChild(tooltipEl);
-let activeTooltipTarget: HTMLElement | null = null;
+// Local drag states coordinator
+let activeDragId: string | null = null;
+let startMouseX = 0;
+let startMouseY = 0;
+let startCardX = 0;
+let startCardY = 0;
 
-// Helper to get active board reference
-function getActiveBoard(): Board {
-  const b = boards.find(x => x.id === activeBoardId);
-  if (b) return b;
-  return boards[0];
-}
-
-// Helper to determine if a formula is a simple number
-function isStaticNumber(formula: string): boolean {
-  return /^-?\d+(\.\d+)?$/.test(formula.trim());
-}
-
-// Format displays: omit decimals if integer, show up to 2 decimal places otherwise
-function formatDisplayValue(val: number): string {
-  const formatted = val.toFixed(2);
-  if (formatted.endsWith('.00')) {
-    return val.toString();
-  }
-  if (formatted.endsWith('0')) {
-    return val.toFixed(1);
-  }
-  return formatted;
-}
-
-// Live JS Compiler / Syntax Check
-function compileFormula(formulaStr: string, activeId: string, variables: Variable[]): { error: string | null } {
-  const cleanFormulaStr = formulaStr.trim();
-  if (!cleanFormulaStr) {
-    return { error: 'Empty expression' };
-  }
-  
-  if (isStaticNumber(cleanFormulaStr)) {
-    return { error: null };
-  }
-
-  try {
-    const mathKeys = Object.getOwnPropertyNames(Math);
-    const mathValues = mathKeys.map((key) => (Math as any)[key]);
-    
-    // Scan variables referenced in this formula
-    const referenced: string[] = [];
-    variables.forEach((x) => {
-      if (x.id !== activeId && new RegExp(`\\b${x.id}\\b`).test(cleanFormulaStr)) {
-        referenced.push(x.id);
-      }
-    });
-
-    const mockValues = referenced.map(() => 0);
-
-    // Support both simple math expressions and complex returning code block strings
-    const hasReturn = /\breturn\b/.test(cleanFormulaStr);
-    const functionBody = hasReturn 
-      ? `"use strict"; ${cleanFormulaStr}`
-      : `"use strict"; return (${cleanFormulaStr});`;
-
-    const fn = new Function(...mathKeys, ...referenced, functionBody);
-    fn(...mathValues, ...mockValues);
-
-    return { error: null };
-  } catch (err: any) {
-    return { error: err.message || 'Invalid syntax' };
-  }
-}
-
-// Helper to generate next sequential Variable ID for active board
-function getNextVariableId(): string {
-  const activeBoard = getActiveBoard();
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const existingIds = activeBoard.variables.map((v) => v.id);
-
-  for (let i = 0; i < alphabet.length; i++) {
-    if (!existingIds.includes(alphabet[i])) {
-      return alphabet[i];
-    }
-  }
-
-  let index = 1;
-  while (true) {
-    for (let i = 0; i < alphabet.length; i++) {
-      const candidate = `${alphabet[i]}${index}`;
-      if (!existingIds.includes(candidate)) {
-        return candidate;
-      }
-    }
-    index++;
-  }
-}
-
-// Safe equation evaluator for active board
-function evaluateAll() {
-  const activeBoard = getActiveBoard();
-  const values: Record<string, number> = {};
-  const errorVars = new Set<string>();
-
-  function resolve(id: string, path: Set<string>): number {
-    if (path.has(id)) {
-      errorVars.add(id);
-      throw new Error('Circular dependency');
-    }
-
-    if (id in values) {
-      return values[id];
-    }
-
-    const v = activeBoard.variables.find((x) => x.id === id);
-    if (!v) return 0;
-
-    const formulaStr = v.formula.trim();
-
-    // Check if it's a simple number
-    if (isStaticNumber(formulaStr)) {
-      const parsed = parseFloat(formulaStr);
-      values[id] = parsed;
-      v.value = parsed;
-      v.hasError = false;
-      return parsed;
-    }
-
-    path.add(id);
-
-    try {
-      const mathKeys = Object.getOwnPropertyNames(Math);
-      const mathValues = mathKeys.map((key) => (Math as any)[key]);
-
-      // Scan referenced variables
-      const referenced: string[] = [];
-      activeBoard.variables.forEach((x) => {
-        if (x.id !== id && new RegExp(`\\b${x.id}\\b`).test(formulaStr)) {
-          referenced.push(x.id);
-        }
-      });
-
-      // Resolve referenced variables
-      const resolvedVars: Record<string, number> = {};
-      referenced.forEach((refId) => {
-        resolvedVars[refId] = resolve(refId, new Set(path));
-      });
-
-      const argNames = Object.keys(resolvedVars);
-      const argValues = Object.values(resolvedVars);
-
-      const hasReturn = /\breturn\b/.test(formulaStr);
-      const functionBody = hasReturn 
-        ? `"use strict"; ${formulaStr}`
-        : `"use strict"; return (${formulaStr});`;
-
-      const fn = new Function(...mathKeys, ...argNames, functionBody);
-      const rawResult = fn(...mathValues, ...argValues);
-
-      if (rawResult === null || rawResult === undefined || typeof rawResult !== 'number' || isNaN(rawResult) || !isFinite(rawResult)) {
-        throw new Error('Invalid math outcome');
-      }
-
-      values[id] = rawResult;
-      v.value = rawResult;
-      v.hasError = false;
-      return rawResult;
-    } catch (_err) {
-      errorVars.add(id);
-      v.hasError = true;
-      values[id] = 0;
-      v.value = 0;
-      return 0;
-    }
-  }
-
-  // Resolve everyone
-  activeBoard.variables.forEach((v) => {
-    try {
-      resolve(v.id, new Set());
-    } catch (_e) {
-      // Circular references caught
-    }
-  });
-
-  // Mark all dependencies recursively failing if root fails
-  activeBoard.variables.forEach((v) => {
-    if (errorVars.has(v.id)) {
-      v.hasError = true;
-    }
-  });
-}
-
-// Reactively update input values of unchecked/blurred variables
+// Updates the display value and errors of blurred inputs
 function updateInputsDisplay() {
   const activeBoard = getActiveBoard();
   activeBoard.variables.forEach((v) => {
@@ -262,21 +58,18 @@ function updateInputsDisplay() {
   });
 }
 
-// Auto size active textarea depending on text length and multi-line content
-function autoSizeInput(inputEl: HTMLTextAreaElement) {
-  // Height dynamic fitting
+// Auto size textareas
+function autoSizeTextarea(inputEl: HTMLTextAreaElement) {
   inputEl.style.height = 'auto';
   const scrollHeight = inputEl.scrollHeight;
   const calculatedHeight = Math.max(24, Math.min(scrollHeight, 300));
   inputEl.style.height = `${calculatedHeight}px`;
 
-  // Width dynamic fitting based on the longest line in custom JS code block
   const lines = inputEl.value.split('\n');
   const maxLineLength = Math.max(...lines.map(line => line.length));
   const calculatedWidth = Math.max(214, (maxLineLength + 4) * 9.5);
   inputEl.style.width = `${calculatedWidth}px`;
 
-  // Synchronise overlay width and height to match input size perfectly
   const cardEl = inputEl.closest('.variable-card');
   if (cardEl) {
     const overlayEl = cardEl.querySelector('.value-highlight-overlay') as HTMLDivElement;
@@ -287,106 +80,15 @@ function autoSizeInput(inputEl: HTMLTextAreaElement) {
   }
 }
 
-// Escapes HTML tags and highlights syntax variables with colors (hl-1 to hl-5)
-function syntaxHighlight(formula: string, activeId: string): string {
-  let escaped = formula
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  const activeBoard = getActiveBoard();
-  
-  // Sort variables descending by length to prevent partial matching
-  const sortedVars = [...activeBoard.variables]
-    .filter(x => x.id !== activeId)
-    .sort((a, b) => b.id.length - a.id.length);
-
-  const refIds = sortedVars
-    .filter((x) => new RegExp(`\\b${x.id}\\b`).test(formula))
-    .map(x => x.id);
-
-  refIds.forEach((id, index) => {
-    const colorIndex = (index % 5) + 1;
-    const regex = new RegExp(`\\b${id}\\b`, 'g');
-    escaped = escaped.replace(regex, `<span class="hl-${colorIndex}">${id}</span>`);
-  });
-
-  return escaped;
-}
-
-// Applies highlighting classes to cards referenced in active formula
-function updateCardHighlights(activeId: string, formulaStr: string) {
-  clearCardHighlights();
-  
-  const activeBoard = getActiveBoard();
-  const sortedVars = [...activeBoard.variables]
-    .filter(x => x.id !== activeId)
-    .sort((a, b) => b.id.length - a.id.length);
-
-  const refIds = sortedVars
-    .filter((x) => new RegExp(`\\b${x.id}\\b`).test(formulaStr))
-    .map(x => x.id);
-
-  refIds.forEach((id, index) => {
-    const colorIndex = (index % 5) + 1;
-    const cardEl = document.querySelector(`.variable-card[data-id="${id}"]`);
-    if (cardEl) {
-      cardEl.classList.add(`card-hl-${colorIndex}`);
-    }
-  });
-}
-
-function clearCardHighlights() {
-  document.querySelectorAll('.variable-card').forEach((card) => {
-    card.classList.remove('card-hl-1', 'card-hl-2', 'card-hl-3', 'card-hl-4', 'card-hl-5');
-  });
-}
-
-// Find first vacant position (scanning vertically within visible bounds, then shifting horizontally, and finally going deeper)
-function findVacantPosition(): { x: number; y: number } {
-  const activeBoard = getActiveBoard();
-  const cardWidth = 240;
-  const cardHeight = 60;
-  
-  const containerWidth = inputsContainer.clientWidth || window.innerWidth || 800;
-  // Subtract footer tab bar height (48px) from clientHeight measurements
-  const containerHeight = (inputsContainer.clientHeight || window.innerHeight || 600) - 48;
-
-  // Phase 1: Scan vertically down column 1, then column 2, etc. (strictly inside visible screen space)
-  for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
-    for (let y = 20; y < containerHeight - cardHeight; y += 80) {
-      const overlaps = activeBoard.variables.some((v) => {
-        return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
-                 y + cardHeight <= v.y || y + cardHeight <= v.y);
-      });
-      if (!overlaps) {
-        return { x, y };
-      }
-    }
-  }
-
-  // Phase 2: If the entire visible grid is fully occupied, start placing cards below the fold row-by-row
-  const startY = Math.max(20, Math.floor((containerHeight - cardHeight) / 80) * 80 + 20);
-  for (let y = startY; y < 5000 - cardHeight; y += 80) {
-    for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
-      const overlaps = activeBoard.variables.some((v) => {
-        return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
-                 y + cardHeight <= v.y || y + cardHeight <= v.y);
-      });
-      if (!overlaps) {
-        return { x, y };
-      }
-    }
-  }
-  
-  return { x: 20, y: 20 };
-}
-
 // Add a single variable entry
 function addNewVariable() {
   const activeBoard = getActiveBoard();
-  const nextId = getNextVariableId();
-  const pos = findVacantPosition();
+  const nextId = generateNextId();
+  const pos = findVacantPosition(
+    activeBoard.variables,
+    inputsContainer.clientWidth,
+    inputsContainer.clientHeight
+  );
 
   activeBoard.variables.push({
     id: nextId,
@@ -399,32 +101,32 @@ function addNewVariable() {
   });
 
   renderVariables();
-  evaluateAll();
+  evaluateAllVariables(activeBoard.variables);
   updateInputsDisplay();
 }
 
 // Delete variable card
 function deleteVariable(id: string) {
   const activeBoard = getActiveBoard();
-  if (activeTooltipTarget && activeTooltipTarget.closest(`.variable-card[data-id="${id}"]`)) {
+  const activeTT = getActiveTooltipTarget();
+  
+  if (activeTT && activeTT.closest(`.variable-card[data-id="${id}"]`)) {
     hideTooltip();
   }
   activeBoard.variables = activeBoard.variables.filter((v) => v.id !== id);
   renderVariables();
-  evaluateAll();
+  evaluateAllVariables(activeBoard.variables);
   updateInputsDisplay();
 }
 
-// Insert Variable ID at active caret
+// Insert Variable ID at active textarea caret
 function insertBadgeId(id: string) {
   const activeBoard = getActiveBoard();
   const active = document.activeElement as HTMLTextAreaElement | null;
   if (active && active.classList.contains('var-value-input')) {
     const varId = active.getAttribute('data-id');
     const variable = activeBoard.variables.find((v) => v.id === varId);
-    if (!variable) return;
-
-    if (variable.id === id) return;
+    if (!variable || variable.id === id) return;
 
     const start = active.selectionStart ?? active.value.length;
     const end = active.selectionEnd ?? active.value.length;
@@ -433,18 +135,17 @@ function insertBadgeId(id: string) {
     active.value = oldVal.substring(0, start) + id + oldVal.substring(end);
     variable.formula = active.value;
     
-    // Position cursor right after inserted text
     const newPos = start + id.length;
     active.setSelectionRange(newPos, newPos);
 
-    autoSizeInput(active);
+    autoSizeTextarea(active);
     
-    // Sync overlay if present
+    // Sync syntax highlighter overlay
     const cardEl = active.closest('.variable-card');
     if (cardEl) {
       const overlayEl = cardEl.querySelector('.value-highlight-overlay') as HTMLDivElement;
       if (overlayEl) {
-        overlayEl.innerHTML = syntaxHighlight(active.value, variable.id);
+        overlayEl.innerHTML = syntaxHighlight(active.value, variable.id, activeBoard.variables);
         overlayEl.scrollLeft = active.scrollLeft;
         overlayEl.scrollTop = active.scrollTop;
       }
@@ -452,7 +153,7 @@ function insertBadgeId(id: string) {
 
     updateCardHighlights(variable.id, active.value);
 
-    // Dynamic compiler warning check
+    // Live JS compiler check
     const check = compileFormula(active.value, variable.id, activeBoard.variables);
     if (check.error) {
       active.setAttribute('data-tooltip', `⚠️ ${check.error}`);
@@ -464,12 +165,12 @@ function insertBadgeId(id: string) {
       hideTooltip();
     }
 
-    evaluateAll();
+    evaluateAllVariables(activeBoard.variables);
     updateInputsDisplay();
   }
 }
 
-// Output HTML rendering of variable rows
+// Render dynamic card entries
 function renderVariables() {
   const activeBoard = getActiveBoard();
   inputsContainer.innerHTML = '';
@@ -509,10 +210,16 @@ function renderVariables() {
     const deleteBtn = card.querySelector('.btn-delete') as HTMLButtonElement;
     const badgeBtn = card.querySelector('.variable-badge') as HTMLDivElement;
 
-    // Mouse Press -> Start dragging
+    // Mouse Press -> Drag nodes
     card.addEventListener('mousedown', (e) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.classList.contains('btn-delete') || target.tagName === 'svg' || target.tagName === 'path') {
+      if (
+        target.tagName === 'INPUT' || 
+        target.tagName === 'TEXTAREA' || 
+        target.classList.contains('btn-delete') || 
+        target.tagName === 'svg' || 
+        target.tagName === 'path'
+      ) {
         return;
       }
       
@@ -526,7 +233,7 @@ function renderVariables() {
       card.style.zIndex = '50';
     });
 
-    // Double click label to rename inline
+    // Double click to edit title labels
     labelSpan.addEventListener('dblclick', () => {
       const input = document.createElement('input');
       input.type = 'text';
@@ -559,28 +266,26 @@ function renderVariables() {
       }
     });
 
-    // Scroll mapping
+    // Synchronize textarea scroll position to overlay
     valInput.addEventListener('scroll', () => {
       overlayEl.scrollLeft = valInput.scrollLeft;
       overlayEl.scrollTop = valInput.scrollTop;
     });
 
-    // Value input events
+    // Textarea inputs
     valInput.addEventListener('focus', () => {
       valInput.value = variable.formula;
       valInput.classList.remove('calc-error');
       
-      autoSizeInput(valInput);
+      autoSizeTextarea(valInput);
 
-      // Trigger overlay highlighter
       overlayEl.style.display = 'block';
-      overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id);
+      overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
       overlayEl.scrollLeft = valInput.scrollLeft;
       overlayEl.scrollTop = valInput.scrollTop;
 
       updateCardHighlights(variable.id, valInput.value);
 
-      // Trigger live compiler check on Focus
       const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
       if (check.error) {
         valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
@@ -602,21 +307,20 @@ function renderVariables() {
       clearCardHighlights();
       hideTooltip();
       
-      evaluateAll();
+      evaluateAllVariables(activeBoard.variables);
       updateInputsDisplay();
     });
 
     valInput.addEventListener('input', () => {
       variable.formula = valInput.value;
-      autoSizeInput(valInput);
+      autoSizeTextarea(valInput);
 
-      overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id);
+      overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
       overlayEl.scrollLeft = valInput.scrollLeft;
       overlayEl.scrollTop = valInput.scrollTop;
 
       updateCardHighlights(variable.id, valInput.value);
 
-      // Trigger live compiler check on Input
       const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
       if (check.error) {
         valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
@@ -628,7 +332,7 @@ function renderVariables() {
         hideTooltip();
       }
       
-      evaluateAll();
+      evaluateAllVariables(activeBoard.variables);
       updateInputsDisplay();
     });
 
@@ -656,13 +360,12 @@ function renderVariables() {
           valInput.value = parseFloat(val.toFixed(4)).toString();
           variable.formula = valInput.value;
           
-          autoSizeInput(valInput);
-          overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id);
+          autoSizeTextarea(valInput);
+          overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id, activeBoard.variables);
           overlayEl.scrollLeft = valInput.scrollLeft;
           overlayEl.scrollTop = valInput.scrollTop;
           updateCardHighlights(variable.id, valInput.value);
 
-          // Verify compiler logic on Keyboard stepper updates
           const check = compileFormula(valInput.value, variable.id, activeBoard.variables);
           if (check.error) {
             valInput.setAttribute('data-tooltip', `⚠️ ${check.error}`);
@@ -674,11 +377,10 @@ function renderVariables() {
             hideTooltip();
           }
 
-          evaluateAll();
+          evaluateAllVariables(activeBoard.variables);
           updateInputsDisplay();
         }
       } else if (e.key === 'Enter' && !e.shiftKey) {
-        // Blur on Enter key unless Shift+Enter is pressed to insert logical line break!
         e.preventDefault();
         valInput.blur();
       } else if (e.key === 'Escape') {
@@ -692,7 +394,7 @@ function renderVariables() {
   });
 }
 
-// Global Drag Mousemove/Mouseup listeners to assure fluid translation
+// Global Drag Mousemove coordinate updates
 window.addEventListener('mousemove', (e) => {
   if (!activeDragId) return;
 
@@ -701,30 +403,22 @@ window.addEventListener('mousemove', (e) => {
   const card = document.querySelector(`.variable-card[data-id="${activeDragId}"]`) as HTMLDivElement;
   if (!variable || !card) return;
 
-  const dx = e.clientX - startMouseX;
-  const dy = e.clientY - startMouseY;
+  const snappedPos = calculateDraggedPosition(
+    e.clientX,
+    e.clientY,
+    startMouseX,
+    startMouseY,
+    startCardX,
+    startCardY,
+    inputsContainer.clientWidth,
+    inputsContainer.clientHeight
+  );
 
-  let newX = startCardX + dx;
-  let newY = startCardY + dy;
+  variable.x = snappedPos.x;
+  variable.y = snappedPos.y;
 
-  // Contain within canvas box bounds
-  const containerRect = inputsContainer.getBoundingClientRect();
-  const cardRect = card.getBoundingClientRect();
-  const maxX = containerRect.width - cardRect.width;
-  const maxY = containerRect.height - cardRect.height;
-
-  newX = Math.max(0, Math.min(newX, maxX));
-  newY = Math.max(0, Math.min(newY, maxY));
-
-  // Snap to 20px grid configuration
-  const snappedX = Math.round(newX / 20) * 20;
-  const snappedY = Math.round(newY / 20) * 20;
-
-  variable.x = snappedX;
-  variable.y = snappedY;
-
-  card.style.left = `${snappedX}px`;
-  card.style.top = `${snappedY}px`;
+  card.style.left = `${snappedPos.x}px`;
+  card.style.top = `${snappedPos.y}px`;
 });
 
 window.addEventListener('mouseup', () => {
@@ -737,46 +431,11 @@ window.addEventListener('mouseup', () => {
   }
 });
 
-// Tooltip positioning manager
-function showTooltip(target: HTMLElement) {
-  const text = target.getAttribute('data-tooltip');
-  if (!text) return;
+// Sync tooltips positions on scroll events
+window.addEventListener('scroll', repositionTooltip, { passive: true });
+inputsContainer.addEventListener('scroll', repositionTooltip, { passive: true });
 
-  tooltipEl.textContent = text;
-  tooltipEl.style.display = 'block';
-  activeTooltipTarget = target;
-
-  repositionTooltip();
-}
-
-// Dismiss tooltip helper
-function hideTooltip() {
-  tooltipEl.style.display = 'none';
-  activeTooltipTarget = null;
-}
-
-// Export position calculations cleanly
-function repositionTooltip() {
-  if (!activeTooltipTarget) return;
-
-  const rect = activeTooltipTarget.getBoundingClientRect();
-  const tooltipWidth = tooltipEl.offsetWidth;
-  const tooltipHeight = tooltipEl.offsetHeight;
-
-  let left = rect.left + rect.width / 2 - tooltipWidth / 2;
-  let top = rect.top - tooltipHeight - 6;
-
-  left = Math.max(6, Math.min(left, window.innerWidth - tooltipWidth - 6));
-
-  if (top < 6) {
-    top = rect.bottom + 6;
-  }
-
-  tooltipEl.style.left = `${left}px`;
-  tooltipEl.style.top = `${top}px`;
-}
-
-// Global delegated mouseover listener
+// delegated global tooltips
 document.addEventListener('mouseover', (e) => {
   const target = (e.target as HTMLElement).closest('[data-tooltip]') as HTMLElement;
   if (target) {
@@ -786,41 +445,37 @@ document.addEventListener('mouseover', (e) => {
 
 document.addEventListener('mouseout', (e) => {
   const target = (e.target as HTMLElement).closest('[data-tooltip]') as HTMLElement;
-  if (target && target === activeTooltipTarget) {
+  const activeTT = getActiveTooltipTarget();
+  if (target && target === activeTT) {
     hideTooltip();
   }
 });
 
-window.addEventListener('scroll', repositionTooltip, { passive: true });
-inputsContainer.addEventListener('scroll', repositionTooltip, { passive: true });
-
-// --- Multiboard Control Actions ---
-
-// Generate the bottom tabs bar
+// Render the bottom board toggler tabs
 function renderTabsList() {
   boardsList.innerHTML = '';
+  const boards = getBoards();
+  const activeBoardId = getActiveBoardId();
 
   boards.forEach((board) => {
     const tab = document.createElement('div');
     tab.className = `board-tab ${board.id === activeBoardId ? 'active' : ''}`;
     
-    // Switch active board on click
     tab.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
       if (target.closest('.btn-tab-close') || target.tagName === 'INPUT') {
         return;
       }
-      if (activeBoardId === board.id) {
+      if (getActiveBoardId() === board.id) {
         return;
       }
-      activeBoardId = board.id;
+      setActiveBoardId(board.id);
       renderTabsList();
       renderVariables();
-      evaluateAll();
+      evaluateAllVariables(getActiveBoard().variables);
       updateInputsDisplay();
     });
 
-    // Double click to rename tab inline
     tab.addEventListener('dblclick', () => {
       const span = tab.querySelector('.board-tab-name-span') as HTMLSpanElement;
       if (!span) return;
@@ -856,20 +511,22 @@ function renderTabsList() {
 
     const closeBtn = tab.querySelector('.btn-tab-close') as HTMLButtonElement;
     closeBtn.addEventListener('click', () => {
-      if (boards.length <= 1) {
+      const allBoards = getBoards();
+      if (allBoards.length <= 1) {
         alert('You must keep at least one board!');
         return;
       }
       
       const confirmClose = confirm(`Are you sure you want to delete "${board.name}"?`);
       if (confirmClose) {
-        boards = boards.filter(x => x.id !== board.id);
-        if (activeBoardId === board.id) {
-          activeBoardId = boards[0].id;
+        const remaining = allBoards.filter(x => x.id !== board.id);
+        setBoards(remaining);
+        if (getActiveBoardId() === board.id) {
+          setActiveBoardId(remaining[0].id);
         }
         renderTabsList();
         renderVariables();
-        evaluateAll();
+        evaluateAllVariables(getActiveBoard().variables);
         updateInputsDisplay();
       }
     });
@@ -878,12 +535,12 @@ function renderTabsList() {
   });
 }
 
-// Add a fresh empty board template
 function createNewBoard() {
+  const allBoards = getBoards();
   const newId = `board-${Date.now()}`;
-  const newName = `Board ${boards.length + 1}`;
+  const newName = `Board ${allBoards.length + 1}`;
   
-  boards.push({
+  allBoards.push({
     id: newId,
     name: newName,
     variables: [
@@ -891,19 +548,20 @@ function createNewBoard() {
     ]
   });
 
-  activeBoardId = newId;
+  setActiveBoardId(newId);
   renderTabsList();
   renderVariables();
-  evaluateAll();
+  evaluateAllVariables(getActiveBoard().variables);
   updateInputsDisplay();
 }
 
-// Bindings
+// Bindings config
 addInputBtn.addEventListener('click', () => addNewVariable());
 addBoardBtn.addEventListener('click', () => createNewBoard());
 
-// Initial run
-evaluateAll();
+// Initialize tooltip & first render
+initializeTooltip();
+evaluateAllVariables(getActiveBoard().variables);
 renderVariables();
 updateInputsDisplay();
 renderTabsList();
