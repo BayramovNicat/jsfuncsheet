@@ -26,7 +26,7 @@ let boards: Board[] = [
       { id: 'B', label: 'Hourly Rate', formula: '75', value: 75, hasError: false, x: 20, y: 100 },
       { id: 'C', label: 'Estimated Hours', formula: '40', value: 40, hasError: false, x: 20, y: 180 },
       { id: 'D', label: 'Discount Percentage', formula: '10', value: 10, hasError: false, x: 20, y: 260 },
-      { id: 'E', label: 'Total Cost', formula: 'A + (B * C) * (1 - D / 100)', value: 3200, hasError: false, x: 280, y: 20 }
+      { id: 'E', label: 'Total Cost', formula: 'const subtotal = B * C;\nconst saving = subtotal * (D / 100);\nreturn A + subtotal - saving;', value: 3200, hasError: false, x: 280, y: 20 }
     ]
   },
   {
@@ -111,7 +111,13 @@ function compileFormula(formulaStr: string, activeId: string, variables: Variabl
 
     const mockValues = referenced.map(() => 0);
 
-    const fn = new Function(...mathKeys, ...referenced, `"use strict"; return (${cleanFormulaStr});`);
+    // Support both simple math expressions and complex returning code block strings
+    const hasReturn = /\breturn\b/.test(cleanFormulaStr);
+    const functionBody = hasReturn 
+      ? `"use strict"; ${cleanFormulaStr}`
+      : `"use strict"; return (${cleanFormulaStr});`;
+
+    const fn = new Function(...mathKeys, ...referenced, functionBody);
     fn(...mathValues, ...mockValues);
 
     return { error: null };
@@ -197,7 +203,12 @@ function evaluateAll() {
       const argNames = Object.keys(resolvedVars);
       const argValues = Object.values(resolvedVars);
 
-      const fn = new Function(...mathKeys, ...argNames, `"use strict"; return (${formulaStr});`);
+      const hasReturn = /\breturn\b/.test(formulaStr);
+      const functionBody = hasReturn 
+        ? `"use strict"; ${formulaStr}`
+        : `"use strict"; return (${formulaStr});`;
+
+      const fn = new Function(...mathKeys, ...argNames, functionBody);
       const rawResult = fn(...mathValues, ...argValues);
 
       if (rawResult === null || rawResult === undefined || typeof rawResult !== 'number' || isNaN(rawResult) || !isFinite(rawResult)) {
@@ -238,10 +249,8 @@ function evaluateAll() {
 function updateInputsDisplay() {
   const activeBoard = getActiveBoard();
   activeBoard.variables.forEach((v) => {
-    const inputEl = document.querySelector(`.var-value-input[data-id="${v.id}"]`) as HTMLInputElement;
+    const inputEl = document.querySelector(`.var-value-input[data-id="${v.id}"]`) as HTMLTextAreaElement;
     if (inputEl && document.activeElement !== inputEl) {
-      inputEl.type = 'text';
-      
       if (v.hasError) {
         inputEl.value = 'Error';
         inputEl.classList.add('calc-error');
@@ -253,18 +262,27 @@ function updateInputsDisplay() {
   });
 }
 
-// Auto size active input depending on text length
-function autoSizeInput(inputEl: HTMLInputElement) {
-  const length = inputEl.value.length;
-  const calculatedWidth = Math.max(214, (length + 4) * 9.5);
+// Auto size active textarea depending on text length and multi-line content
+function autoSizeInput(inputEl: HTMLTextAreaElement) {
+  // Height dynamic fitting
+  inputEl.style.height = 'auto';
+  const scrollHeight = inputEl.scrollHeight;
+  const calculatedHeight = Math.max(24, Math.min(scrollHeight, 300));
+  inputEl.style.height = `${calculatedHeight}px`;
+
+  // Width dynamic fitting based on the longest line in custom JS code block
+  const lines = inputEl.value.split('\n');
+  const maxLineLength = Math.max(...lines.map(line => line.length));
+  const calculatedWidth = Math.max(214, (maxLineLength + 4) * 9.5);
   inputEl.style.width = `${calculatedWidth}px`;
 
-  // Synchronise overlay width to match input width perfectly
+  // Synchronise overlay width and height to match input size perfectly
   const cardEl = inputEl.closest('.variable-card');
   if (cardEl) {
     const overlayEl = cardEl.querySelector('.value-highlight-overlay') as HTMLDivElement;
     if (overlayEl) {
       overlayEl.style.width = `${calculatedWidth}px`;
+      overlayEl.style.height = `${calculatedHeight}px`;
     }
   }
 }
@@ -339,7 +357,7 @@ function findVacantPosition(): { x: number; y: number } {
     for (let y = 20; y < containerHeight - cardHeight; y += 80) {
       const overlaps = activeBoard.variables.some((v) => {
         return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
-                 y + cardHeight <= v.y || v.y + cardHeight <= y);
+                 y + cardHeight <= v.y || y + cardHeight <= v.y);
       });
       if (!overlaps) {
         return { x, y };
@@ -353,7 +371,7 @@ function findVacantPosition(): { x: number; y: number } {
     for (let x = 20; x < containerWidth - cardWidth + 20; x += 260) {
       const overlaps = activeBoard.variables.some((v) => {
         return !(x + cardWidth <= v.x || v.x + cardWidth <= x || 
-                 y + cardHeight <= v.y || v.y + cardHeight <= y);
+                 y + cardHeight <= v.y || y + cardHeight <= v.y);
       });
       if (!overlaps) {
         return { x, y };
@@ -400,7 +418,7 @@ function deleteVariable(id: string) {
 // Insert Variable ID at active caret
 function insertBadgeId(id: string) {
   const activeBoard = getActiveBoard();
-  const active = document.activeElement as HTMLInputElement | null;
+  const active = document.activeElement as HTMLTextAreaElement | null;
   if (active && active.classList.contains('var-value-input')) {
     const varId = active.getAttribute('data-id');
     const variable = activeBoard.variables.find((v) => v.id === varId);
@@ -428,6 +446,7 @@ function insertBadgeId(id: string) {
       if (overlayEl) {
         overlayEl.innerHTML = syntaxHighlight(active.value, variable.id);
         overlayEl.scrollLeft = active.scrollLeft;
+        overlayEl.scrollTop = active.scrollTop;
       }
     }
 
@@ -462,7 +481,6 @@ function renderVariables() {
     card.style.left = `${variable.x}px`;
     card.style.top = `${variable.y}px`;
 
-    const initialType = 'text';
     const displayVal = variable.hasError ? 'Error' : formatDisplayValue(variable.value);
 
     card.innerHTML = `
@@ -479,14 +497,14 @@ function renderVariables() {
           </div>
           <div class="var-value-wrapper">
             <div class="value-highlight-overlay" data-id="${variable.id}"></div>
-            <input type="${initialType}" class="var-value-input" data-id="${variable.id}" value="${displayVal}" step="any" spellcheck="false" autocomplete="off">
+            <textarea class="var-value-input" data-id="${variable.id}" spellcheck="false" autocomplete="off" rows="1">${displayVal}</textarea>
           </div>
         </div>
       </div>
     `;
 
     const labelSpan = card.querySelector('.var-label-span') as HTMLSpanElement;
-    const valInput = card.querySelector('.var-value-input') as HTMLInputElement;
+    const valInput = card.querySelector('.var-value-input') as HTMLTextAreaElement;
     const overlayEl = card.querySelector('.value-highlight-overlay') as HTMLDivElement;
     const deleteBtn = card.querySelector('.btn-delete') as HTMLButtonElement;
     const badgeBtn = card.querySelector('.variable-badge') as HTMLDivElement;
@@ -494,7 +512,7 @@ function renderVariables() {
     // Mouse Press -> Start dragging
     card.addEventListener('mousedown', (e) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.classList.contains('btn-delete') || target.tagName === 'svg' || target.tagName === 'path') {
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.classList.contains('btn-delete') || target.tagName === 'svg' || target.tagName === 'path') {
         return;
       }
       
@@ -544,11 +562,11 @@ function renderVariables() {
     // Scroll mapping
     valInput.addEventListener('scroll', () => {
       overlayEl.scrollLeft = valInput.scrollLeft;
+      overlayEl.scrollTop = valInput.scrollTop;
     });
 
     // Value input events
     valInput.addEventListener('focus', () => {
-      valInput.type = 'text';
       valInput.value = variable.formula;
       valInput.classList.remove('calc-error');
       
@@ -558,6 +576,7 @@ function renderVariables() {
       overlayEl.style.display = 'block';
       overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id);
       overlayEl.scrollLeft = valInput.scrollLeft;
+      overlayEl.scrollTop = valInput.scrollTop;
 
       updateCardHighlights(variable.id, valInput.value);
 
@@ -575,8 +594,10 @@ function renderVariables() {
 
     valInput.addEventListener('blur', () => {
       valInput.style.width = '';
+      valInput.style.height = '';
       valInput.removeAttribute('data-tooltip');
       overlayEl.style.width = '';
+      overlayEl.style.height = '';
       overlayEl.style.display = 'none';
       clearCardHighlights();
       hideTooltip();
@@ -591,6 +612,7 @@ function renderVariables() {
 
       overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id);
       overlayEl.scrollLeft = valInput.scrollLeft;
+      overlayEl.scrollTop = valInput.scrollTop;
 
       updateCardHighlights(variable.id, valInput.value);
 
@@ -637,6 +659,7 @@ function renderVariables() {
           autoSizeInput(valInput);
           overlayEl.innerHTML = syntaxHighlight(valInput.value, variable.id);
           overlayEl.scrollLeft = valInput.scrollLeft;
+          overlayEl.scrollTop = valInput.scrollTop;
           updateCardHighlights(variable.id, valInput.value);
 
           // Verify compiler logic on Keyboard stepper updates
@@ -654,7 +677,11 @@ function renderVariables() {
           evaluateAll();
           updateInputsDisplay();
         }
-      } else if (e.key === 'Enter' || e.key === 'Escape') {
+      } else if (e.key === 'Enter' && !e.shiftKey) {
+        // Blur on Enter key unless Shift+Enter is pressed to insert logical line break!
+        e.preventDefault();
+        valInput.blur();
+      } else if (e.key === 'Escape') {
         valInput.blur();
       }
     });
@@ -722,6 +749,7 @@ function showTooltip(target: HTMLElement) {
   repositionTooltip();
 }
 
+// Dismiss tooltip helper
 function hideTooltip() {
   tooltipEl.style.display = 'none';
   activeTooltipTarget = null;

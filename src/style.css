@@ -206,11 +206,12 @@ body {
   max-width: 214px;
 }
 
-/* Polished light-mode custom text & number fields */
+/* Polished light-mode custom fields & textareas */
 input[type="text"],
-input[type="number"] {
+input[type="number"],
+textarea.var-value-input {
   width: 100%;
-  padding: 0.25rem 0.4rem;
+  padding: 0.3rem 0.5rem;
   border: 1px solid transparent !important;
   border-radius: var(--radius-sm);
   background: transparent !important;
@@ -221,13 +222,13 @@ input[type="number"] {
 }
 
 input[type="text"]:focus,
-input[type="number"]:focus {
+input[type="number"]:focus,
+textarea.var-value-input:focus {
   outline: none !important;
-  border-color: transparent !important;
-  border-bottom: 1px dashed var(--border-focus) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  border-color: var(--border-focus) !important;
+  border-radius: var(--radius-sm) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
 }
 
 .var-value-wrapper {
@@ -238,8 +239,15 @@ input[type="number"]:focus {
 .var-value-input {
   font-family: var(--font-mono) !important;
   position: relative;
-  z-index: 2;
+  z-index: 1; /* Input sit at z-index 1 */
   overflow-x: auto;
+  resize: none;
+  min-height: 24px;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-all;
 }
 
 .var-value-input:focus {
@@ -254,18 +262,20 @@ input[type="number"]:focus {
   left: 0;
   width: 100%;
   height: 100%;
-  padding: 0.25rem 0.4rem;
+  padding: 0.3rem 0.5rem;
   border: 1px solid transparent;
   background: transparent !important;
   color: var(--text-primary);
   font-family: var(--font-mono) !important;
   font-size: 0.9rem;
   pointer-events: none;
-  white-space: pre;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-all;
   overflow: hidden;
   box-sizing: border-box;
   display: none;
-  z-index: 1;
+  z-index: 2; /* Highlight overlay sit at z-index 2 (on top) */
 }
 
 /* Custom Webkit Number Spinners styling */
@@ -281,11 +291,19 @@ input[type="number"]:hover::-webkit-inner-spin-button {
 }
 
 /* Dynamic error input styles */
-input.calc-error {
+input.calc-error,
+textarea.calc-error {
   border-color: transparent !important;
   color: var(--danger-text) !important;
   background: transparent !important;
   font-weight: 600;
+}
+
+input.calc-error:focus,
+textarea.calc-error:focus {
+  border-color: var(--danger-text) !important;
+  background: var(--danger-bg) !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
 }
 
 /* Clean editable label span and inline input */
