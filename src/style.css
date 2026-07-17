@@ -159,6 +159,10 @@ body {
 	z-index: 10;
 }
 
+.variable-card:focus-within {
+	z-index: 100 !important;
+}
+
 .variable-card-row {
 	display: flex;
 	align-items: flex-start;
