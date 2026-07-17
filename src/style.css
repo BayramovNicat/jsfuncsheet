@@ -857,3 +857,19 @@ body.hide-badges .variable-badge {
 		0 8px 10px -6px rgba(37, 99, 235, 0.4) !important;
 	border-color: var(--accent-primary) !important;
 }
+
+/* Shift-Mousedrag Selection Styles */
+.selection-marquee {
+	position: absolute;
+	border: 1.5px dashed var(--accent-primary, #2563eb);
+	background-color: rgba(37, 99, 235, 0.1);
+	pointer-events: none;
+	z-index: 10000;
+}
+
+.variable-card.selected {
+	outline: 2.5px solid var(--accent-primary, #2563eb) !important;
+	box-shadow:
+		var(--shadow-lg),
+		0 0 0 4px rgba(37, 99, 235, 0.25) !important;
+}

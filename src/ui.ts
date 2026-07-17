@@ -343,7 +343,8 @@ function bindVariableCardEvents(
 			target.tagName === "TEXTAREA" ||
 			target.closest(".btn-delete") ||
 			target.closest(".btn-generate") ||
-			target.closest(".variable-badge")
+			target.closest(".variable-badge") ||
+			e.shiftKey
 		) {
 			return;
 		}
