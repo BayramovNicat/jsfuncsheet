@@ -57,12 +57,41 @@ export function getDragStartCard() {
 let inputsContainer: HTMLDivElement;
 let boardsList: HTMLDivElement;
 
+export function clearNavigationHighlights() {
+	if (inputsContainer) {
+		inputsContainer.classList.remove("highlighting-target");
+	}
+	document
+		.querySelectorAll(".variable-card.navigation-highlight")
+		.forEach((card) => {
+			card.classList.remove("navigation-highlight");
+		});
+}
+
 export function initializeUiSelectors(
 	inputs: HTMLDivElement,
 	boards: HTMLDivElement,
 ) {
 	inputsContainer = inputs;
 	boardsList = boards;
+
+	window.addEventListener("keydown", (e) => {
+		if (e.key === "Meta" || e.key === "Control") {
+			document.body.classList.add("cmd-pressed");
+		}
+	});
+
+	window.addEventListener("keyup", (e) => {
+		if (e.key === "Meta" || e.key === "Control") {
+			document.body.classList.remove("cmd-pressed");
+			clearNavigationHighlights();
+		}
+	});
+
+	window.addEventListener("blur", () => {
+		document.body.classList.remove("cmd-pressed");
+		clearNavigationHighlights();
+	});
 }
 
 // Updates the display value and errors of blurred inputs
@@ -280,6 +309,58 @@ function bindVariableCardEvents(
 	valInput.addEventListener("scroll", () => {
 		overlayEl.scrollLeft = valInput.scrollLeft;
 		overlayEl.scrollTop = valInput.scrollTop;
+	});
+
+	overlayEl.addEventListener("click", (e) => {
+		const target = e.target as HTMLElement;
+		if (target && target.className.includes("hl-")) {
+			const varId = target.textContent?.trim();
+			if (varId) {
+				const targetInput = document.querySelector(
+					`.var-value-input[data-id="${varId}"]`,
+				) as HTMLTextAreaElement | null;
+				if (targetInput) {
+					targetInput.focus();
+				}
+			}
+		}
+	});
+
+	overlayEl.addEventListener("mouseover", (e) => {
+		if (!document.body.classList.contains("cmd-pressed")) return;
+		const target = e.target as HTMLElement;
+		if (target && target.className.includes("hl-")) {
+			const varId = target.textContent?.trim();
+			if (varId) {
+				document
+					.querySelectorAll(".variable-card.navigation-highlight")
+					.forEach((card) => {
+						card.classList.remove("navigation-highlight");
+					});
+				inputsContainer.classList.add("highlighting-target");
+				const targetCard = document.querySelector(
+					`.variable-card[data-id="${varId}"]`,
+				) as HTMLElement | null;
+				if (targetCard) {
+					targetCard.classList.add("navigation-highlight");
+				}
+			}
+		}
+	});
+
+	overlayEl.addEventListener("mouseout", (e) => {
+		const target = e.target as HTMLElement;
+		if (target && target.className.includes("hl-")) {
+			const related = e.relatedTarget as HTMLElement;
+			if (!related || !related.className.includes("hl-")) {
+				inputsContainer.classList.remove("highlighting-target");
+				document
+					.querySelectorAll(".variable-card.navigation-highlight")
+					.forEach((card) => {
+						card.classList.remove("navigation-highlight");
+					});
+			}
+		}
 	});
 
 	valInput.addEventListener("focus", () => {
