@@ -4,8 +4,8 @@ import {
 	evaluateAllVariables,
 	formatDisplayValue,
 	isStaticNumber,
-	syntaxHighlight,
 } from "./math";
+import { syntaxHighlight } from "./highlight";
 import {
 	clearCardHighlights,
 	generateNextId,
