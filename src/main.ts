@@ -3,8 +3,10 @@ import { calculateDraggedPosition } from "./canvas";
 import { evaluateAllVariables } from "./math";
 import {
 	getActiveBoard,
+	getShowBadges,
 	getShowConnections,
 	saveStateToLocalStorage,
+	setShowBadges,
 	setShowConnections,
 } from "./state";
 import {
@@ -25,6 +27,7 @@ import {
 	renderTabsList,
 	renderVariables,
 	setActiveDragId,
+	updateBadgesVisibility,
 	updateInputsDisplay,
 } from "./ui";
 
@@ -164,8 +167,18 @@ toggleLinesBtn?.addEventListener("click", () => {
 	renderTabsList();
 });
 
+const toggleBadgesBtn = document.getElementById(
+	"toggle-badges-btn",
+) as HTMLButtonElement | null;
+toggleBadgesBtn?.addEventListener("click", () => {
+	setShowBadges(!getShowBadges());
+	updateBadgesVisibility();
+	renderTabsList();
+});
+
 // Initialize elements and bootstrap render
 initializeTooltip();
+updateBadgesVisibility();
 evaluateAllVariables(getActiveBoard().variables);
 renderVariables();
 updateInputsDisplay();

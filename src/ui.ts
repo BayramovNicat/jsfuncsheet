@@ -12,6 +12,7 @@ import {
 	getActiveBoard,
 	getActiveBoardId,
 	getBoards,
+	getShowBadges,
 	getShowConnections,
 	saveStateToLocalStorage,
 	setActiveBoardId,
@@ -798,6 +799,18 @@ export function renderTabsList(): void {
 			toggleBtn.classList.add("inactive");
 		}
 	}
+
+	// Update toggle-badges active state look
+	const toggleBadgesBtn = document.getElementById(
+		"toggle-badges-btn",
+	) as HTMLButtonElement | null;
+	if (toggleBadgesBtn) {
+		if (getShowBadges()) {
+			toggleBadgesBtn.classList.remove("inactive");
+		} else {
+			toggleBadgesBtn.classList.add("inactive");
+		}
+	}
 }
 
 export function createNewBoard(): void {
@@ -826,6 +839,15 @@ export function createNewBoard(): void {
 	renderVariables();
 	evaluateAllVariables(getActiveBoard().variables);
 	updateInputsDisplay();
+}
+
+export function updateBadgesVisibility(): void {
+	const show = getShowBadges();
+	if (show) {
+		document.body.classList.remove("hide-badges");
+	} else {
+		document.body.classList.add("hide-badges");
+	}
 }
 
 export function drawConnections(): void {

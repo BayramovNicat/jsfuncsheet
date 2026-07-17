@@ -199,11 +199,17 @@ body {
 	justify-content: center;
 	flex-shrink: 0;
 	user-select: none;
-	cursor: pointer;
+	cursor: default;
+	pointer-events: none;
 	transition: all 0.15s ease;
 }
 
-.variable-badge:hover {
+.inputs-container:focus-within .variable-badge {
+	cursor: pointer;
+	pointer-events: auto;
+}
+
+.inputs-container:focus-within .variable-badge:hover {
 	background: var(--accent-primary);
 	color: white;
 }
@@ -775,6 +781,11 @@ body.cmd-pressed .value-highlight-overlay span[class*="hl-"] {
 
 body.cmd-pressed .value-highlight-overlay span[class*="hl-"]:hover {
 	text-decoration: underline !important;
+}
+
+/* Toggle Badges Hiding Styles */
+body.hide-badges .variable-badge {
+	display: none !important;
 }
 
 #inputs-container.highlighting-target .variable-card {

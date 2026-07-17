@@ -112,6 +112,7 @@ let boards: Board[] = [
 
 let activeBoardId = "compound";
 let showConnections = true;
+let showBadges = true;
 
 export function getBoards(): Board[] {
 	return boards;
@@ -126,6 +127,15 @@ export function setShowConnections(show: boolean) {
 	saveStateToLocalStorage();
 }
 
+export function getShowBadges(): boolean {
+	return showBadges;
+}
+
+export function setShowBadges(show: boolean) {
+	showBadges = show;
+	saveStateToLocalStorage();
+}
+
 export function saveStateToLocalStorage() {
 	try {
 		localStorage.setItem("jsfuncsheet_boards", JSON.stringify(boards));
@@ -134,6 +144,7 @@ export function saveStateToLocalStorage() {
 			"jsfuncsheet_show_connections",
 			String(showConnections),
 		);
+		localStorage.setItem("jsfuncsheet_show_badges", String(showBadges));
 	} catch (e) {
 		console.error("Failed to save state to localStorage", e);
 	}
@@ -144,6 +155,7 @@ export function loadStateFromLocalStorage() {
 		let storedBoards = localStorage.getItem("jsfuncsheet_boards");
 		let storedActiveId = localStorage.getItem("jsfuncsheet_active_board_id");
 		const storedShow = localStorage.getItem("jsfuncsheet_show_connections");
+		const storedBadges = localStorage.getItem("jsfuncsheet_show_badges");
 
 		// Fallback to old keys for backward compatibility
 		if (!storedBoards) {
@@ -161,6 +173,9 @@ export function loadStateFromLocalStorage() {
 		}
 		if (storedShow !== null) {
 			showConnections = storedShow === "true";
+		}
+		if (storedBadges !== null) {
+			showBadges = storedBadges === "true";
 		}
 	} catch (e) {
 		console.error("Failed to load state from localStorage", e);
