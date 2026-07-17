@@ -8,7 +8,13 @@ export function isStaticNumber(formula: string): boolean {
 }
 
 // Format displays: omit decimals if integer, show up to 2 decimal places otherwise
-export function formatDisplayValue(val: number): string {
+export function formatDisplayValue(val: any): string {
+	if (typeof val === "function") {
+		return "ƒ()";
+	}
+	if (typeof val !== "number") {
+		return String(val);
+	}
 	const formatted = val.toFixed(2);
 	if (formatted.endsWith(".00")) {
 		return val.toString();
@@ -19,18 +25,40 @@ export function formatDisplayValue(val: number): string {
 	return formatted;
 }
 
+// Helper to clean Math namespace parameter names that overlap with user variable names
+function getEvaluationContext(
+	mathKeys: string[],
+	argNames: string[],
+	argValues: any[],
+) {
+	const cleanMathKeys: string[] = [];
+	const cleanMathValues: any[] = [];
+
+	for (let i = 0; i < mathKeys.length; i++) {
+		const key = mathKeys[i];
+		if (!argNames.includes(key)) {
+			cleanMathKeys.push(key);
+			cleanMathValues.push((Math as any)[key]);
+		}
+	}
+
+	return {
+		names: [...cleanMathKeys, ...argNames],
+		values: [...cleanMathValues, ...argValues],
+	};
+}
+
 // Helper to create evaluate Function instance dynamically
 function compileFunctionContext(
 	formulaStr: string,
-	mathKeys: string[],
-	argNames: string[],
+	parameterNames: string[],
 ): Function {
 	const hasReturn = /\breturn\b/.test(formulaStr);
 	const functionBody = hasReturn
 		? `"use strict"; ${formulaStr}`
 		: `"use strict"; return (${formulaStr});`;
 
-	return new Function(...mathKeys, ...argNames, functionBody);
+	return new Function(...parameterNames, functionBody);
 }
 
 // Live JS Compiler / Syntax Check
@@ -50,7 +78,6 @@ export function compileFormula(
 
 	try {
 		const mathKeys = Object.getOwnPropertyNames(Math);
-		const mathValues = mathKeys.map((key) => (Math as any)[key]);
 
 		const referenced: string[] = [];
 		variables.forEach((x) => {
@@ -62,9 +89,32 @@ export function compileFormula(
 			}
 		});
 
-		const mockValues = referenced.map(() => 0);
-		const fn = compileFunctionContext(cleanFormulaStr, mathKeys, referenced);
-		fn(...mathValues, ...mockValues);
+		const mockValues = referenced.map((refId) => {
+			const found = variables.find((x) => x.id === refId);
+			if (found && !found.hasError && typeof found.value === "function") {
+				return found.value;
+			}
+			const dummy: any = () => 0;
+			dummy.valueOf = () => 0;
+			dummy.toString = () => "0";
+			return new Proxy(dummy, {
+				get: (target, prop) => {
+					if (prop === "valueOf" || prop === "toString") {
+						return target[prop];
+					}
+					return dummy;
+				},
+				apply: () => 0,
+			});
+		});
+
+		const { names, values } = getEvaluationContext(
+			mathKeys,
+			referenced,
+			mockValues,
+		);
+		const fn = compileFunctionContext(cleanFormulaStr, names);
+		fn(...values);
 
 		return { error: null };
 	} catch (err: any) {
@@ -426,10 +476,10 @@ export function syntaxHighlight(
 
 // Safe equation evaluator for active board variables
 export function evaluateAllVariables(variables: Variable[]) {
-	const values: Record<string, number> = {};
+	const values: Record<string, any> = {};
 	const errorVars = new Set<string>();
 
-	function resolve(id: string, path: Set<string>): number {
+	function resolve(id: string, path: Set<string>): any {
 		if (path.has(id)) {
 			errorVars.add(id);
 			throw new Error("Circular dependency");
@@ -456,7 +506,6 @@ export function evaluateAllVariables(variables: Variable[]) {
 
 		try {
 			const mathKeys = Object.getOwnPropertyNames(Math);
-			const mathValues = mathKeys.map((key) => (Math as any)[key]);
 
 			const referenced: string[] = [];
 			variables.forEach((x) => {
@@ -465,7 +514,7 @@ export function evaluateAllVariables(variables: Variable[]) {
 				}
 			});
 
-			const resolvedVars: Record<string, number> = {};
+			const resolvedVars: Record<string, any> = {};
 			referenced.forEach((refId) => {
 				resolvedVars[refId] = resolve(refId, new Set(path));
 			});
@@ -473,15 +522,23 @@ export function evaluateAllVariables(variables: Variable[]) {
 			const argNames = Object.keys(resolvedVars);
 			const argValues = Object.values(resolvedVars);
 
-			const fn = compileFunctionContext(formulaStr, mathKeys, argNames);
-			const rawResult = fn(...mathValues, ...argValues);
+			const { names, values: evalValues } = getEvaluationContext(
+				mathKeys,
+				argNames,
+				argValues,
+			);
+			const fn = compileFunctionContext(formulaStr, names);
+			const rawResult = fn(...evalValues);
 
 			if (
 				rawResult === null ||
 				rawResult === undefined ||
-				typeof rawResult !== "number" ||
-				isNaN(rawResult) ||
-				!isFinite(rawResult)
+				(typeof rawResult !== "number" &&
+					typeof rawResult !== "function" &&
+					typeof rawResult !== "string" &&
+					typeof rawResult !== "boolean") ||
+				(typeof rawResult === "number" &&
+					(Number.isNaN(rawResult) || !Number.isFinite(rawResult)))
 			) {
 				throw new Error("Invalid math outcome");
 			}
