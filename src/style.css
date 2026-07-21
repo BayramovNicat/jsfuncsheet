@@ -273,6 +273,7 @@ input[type="text"],
 input[type="number"],
 textarea.var-value-input {
 	width: 100%;
+	max-width: 100%;
 	padding: 0.3rem 0.5rem;
 	border: 1px solid transparent !important;
 	border-radius: var(--radius-sm);
@@ -285,11 +286,6 @@ textarea.var-value-input {
 		background-color 0.15s ease,
 		box-shadow 0.15s ease,
 		color 0.15s ease;
-}
-
-.variable-card:not(:hover):not(:focus-within) textarea.var-value-input {
-	width: 100% !important;
-	overflow-x: hidden;
 }
 
 input[type="text"]:focus,
@@ -318,7 +314,8 @@ textarea.var-value-input:focus {
 	font-family: var(--font-mono) !important;
 	position: relative;
 	z-index: 2; /* Input sit at z-index 2 (on top) */
-	overflow-x: auto;
+	overflow-x: hidden;
+	max-width: 100%;
 	resize: none;
 	min-height: 24px;
 	max-height: 300px;
@@ -341,6 +338,7 @@ textarea.var-value-input:focus {
 	top: 0;
 	left: 0;
 	width: 100%;
+	max-width: 100%;
 	height: 100%;
 	padding: 0.3rem 0.5rem;
 	border: 1px solid transparent;

@@ -134,7 +134,7 @@ export function autoSizeTextarea(inputEl: HTMLTextAreaElement): void {
 	const maxLineLength = Math.max(...lines.map((line) => line.length));
 	const calculatedWidth = Math.max(
 		LAYOUT_CONFIG.MIN_VAL_INPUT_WIDTH,
-		(maxLineLength + 4) * LAYOUT_CONFIG.CHAR_WIDTH,
+		Math.min((maxLineLength + 4) * LAYOUT_CONFIG.CHAR_WIDTH, 574),
 	);
 	inputEl.style.width = `${calculatedWidth}px`;
 
