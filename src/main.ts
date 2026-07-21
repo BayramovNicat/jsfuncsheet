@@ -308,5 +308,6 @@ updateBadgesVisibility();
 renderVariables();
 renderTabsList();
 evaluateAllVariables(getActiveBoard().variables).then(() => {
+	renderVariables();
 	updateInputsDisplay();
 });

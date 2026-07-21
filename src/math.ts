@@ -44,6 +44,22 @@ export function formatDisplayValue(val: unknown): string {
 	return formatted;
 }
 
+export function isImageUrl(val: unknown): boolean {
+	if (typeof val !== "string") return false;
+	const trimmed = val.trim();
+	if (
+		!trimmed.startsWith("http://") &&
+		!trimmed.startsWith("https://") &&
+		!trimmed.startsWith("data:image/")
+	) {
+		return false;
+	}
+	return (
+		/\.(jpeg|jpg|gif|png|svg|webp|bmp)($|\?)/i.test(trimmed) ||
+		trimmed.startsWith("data:image/")
+	);
+}
+
 // Helper to clean Math namespace parameter names that overlap with user variable names
 function getEvaluationContext(
 	mathKeys: string[],

@@ -4,6 +4,7 @@ import {
 	compileFormula,
 	evaluateAllVariables,
 	formatDisplayValue,
+	isImageUrl,
 	isStaticNumber,
 } from "./math";
 import {
@@ -316,6 +317,7 @@ export function deleteVariable(id: string): void {
 	activeBoard.variables = activeBoard.variables.filter((v) => v.id !== id);
 	renderVariables();
 	evaluateAllVariables(activeBoard.variables).then(() => {
+		renderVariables();
 		updateInputsDisplay();
 	});
 }
@@ -376,6 +378,7 @@ export function insertBadgeId(id: string): void {
 	}
 
 	evaluateAllVariables(activeBoard.variables).then(() => {
+		renderVariables();
 		updateInputsDisplay();
 		drawConnections();
 	});
@@ -554,6 +557,7 @@ function bindVariableCardEvents(
 			hideTooltip();
 
 			evaluateAllVariables(activeBoard.variables).then(() => {
+				renderVariables();
 				updateInputsDisplay();
 			});
 		});
@@ -825,12 +829,24 @@ function bindVariableCardEvents(
 						variable.value = selectedItem;
 						variable.formula = `return (${JSON.stringify(selectedItem)});`;
 						evaluateAllVariables(activeBoard.variables).then(() => {
+							renderVariables();
 							updateInputsDisplay();
 							drawConnections();
 						});
 					}
 				}
 			}
+		});
+	}
+
+	const imgContainer = card.querySelector(
+		".var-image-container",
+	) as HTMLDivElement | null;
+	if (imgContainer && valInput) {
+		imgContainer.addEventListener("click", () => {
+			imgContainer.style.display = "none";
+			valInput.style.display = "block";
+			valInput.focus();
 		});
 	}
 
@@ -950,6 +966,14 @@ export function renderVariables(): void {
 					</select>
 				</div>
 			`;
+		} else if (isImageUrl(variable.value)) {
+			inputContentHtml = `
+				<div class="var-image-container" data-id="${variable.id}">
+					<img src="${variable.value}" class="var-card-image" alt="Preview"/>
+				</div>
+				<textarea${errAttr} style="display: none;" data-id="${variable.id}" spellcheck="false" autocomplete="off" rows="1">${displayVal}</textarea>
+				<div class="value-highlight-overlay" style="display: none;" data-id="${variable.id}"></div>
+			`;
 		} else {
 			inputContentHtml = `
 				<textarea${errAttr} data-id="${variable.id}" spellcheck="false" autocomplete="off" rows="1">${displayVal}</textarea>
@@ -1042,6 +1066,7 @@ export function renderTabsList(): void {
 			renderTabsList();
 			renderVariables();
 			evaluateAllVariables(getActiveBoard().variables).then(() => {
+				renderVariables();
 				updateInputsDisplay();
 			});
 		});
@@ -1100,6 +1125,7 @@ export function renderTabsList(): void {
 				renderTabsList();
 				renderVariables();
 				evaluateAllVariables(getActiveBoard().variables).then(() => {
+					renderVariables();
 					updateInputsDisplay();
 				});
 			}
@@ -1158,6 +1184,7 @@ export function createNewBoard(): void {
 	renderTabsList();
 	renderVariables();
 	evaluateAllVariables(getActiveBoard().variables).then(() => {
+		renderVariables();
 		updateInputsDisplay();
 	});
 }

@@ -944,3 +944,26 @@ select.var-options-select:focus {
 	border-color: var(--border-focus) !important;
 	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
 }
+
+/* Image preview styles in variables */
+.var-image-container {
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 0.3rem 0;
+	cursor: pointer;
+	border: 1px dashed var(--border-light);
+	border-radius: var(--radius-sm);
+	background: #ffffff;
+}
+
+.var-image-container:hover {
+	border-color: var(--accent-primary);
+	background: var(--accent-bg);
+}
+
+.var-card-image {
+	max-height: 48px;
+	object-fit: contain;
+}
