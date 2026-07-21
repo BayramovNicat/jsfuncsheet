@@ -966,4 +966,12 @@ select.var-options-select:focus {
 .var-card-image {
 	max-height: 48px;
 	object-fit: contain;
+	transition:
+		max-height 0.2s ease,
+		transform 0.2s ease;
+}
+
+.var-image-container:hover .var-card-image {
+	max-height: 120px;
+	transform: scale(1.05);
 }
