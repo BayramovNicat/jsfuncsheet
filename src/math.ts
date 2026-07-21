@@ -73,9 +73,19 @@ function compileFunctionContext(
 	parameterNames: string[],
 ): (...args: unknown[]) => unknown {
 	const hasReturn = /\breturn\b/.test(formulaStr);
+	const hasAwait = /\bawait\b/.test(formulaStr);
 	const functionBody = hasReturn
 		? `"use strict"; ${formulaStr}`
 		: `"use strict"; return (${formulaStr});`;
+
+	if (hasAwait) {
+		const AsyncFunction = Object.getPrototypeOf(
+			async function () {},
+		).constructor;
+		return new AsyncFunction(...parameterNames, functionBody) as (
+			...args: unknown[]
+		) => unknown;
+	}
 
 	return new Function(...parameterNames, functionBody) as (
 		...args: unknown[]
@@ -151,7 +161,10 @@ export function compileFormula(
 			mockValues,
 		);
 		const fn = getCompiledFunction(cleanFormulaStr, names);
-		fn(...values);
+		const rawResult = fn(...values);
+		if (rawResult instanceof Promise) {
+			rawResult.catch(() => {});
+		}
 
 		return { error: null };
 	} catch (err: unknown) {
@@ -161,8 +174,11 @@ export function compileFormula(
 	}
 }
 
+let currentEvaluationId = 0;
+
 // Safe equation evaluator for active board variables
-export function evaluateAllVariables(variables: Variable[]) {
+export async function evaluateAllVariables(variables: Variable[]) {
+	const evaluationId = ++currentEvaluationId;
 	const values: Record<string, unknown> = {};
 	const errorVars = new Set<string>();
 
@@ -172,7 +188,7 @@ export function evaluateAllVariables(variables: Variable[]) {
 		v.hasError = false;
 	});
 
-	function resolve(id: string, path: Set<string>): unknown {
+	async function resolve(id: string, path: Set<string>): Promise<unknown> {
 		if (path.has(id)) {
 			errorVars.add(id);
 			const pathArray = Array.from(path);
@@ -211,14 +227,14 @@ export function evaluateAllVariables(variables: Variable[]) {
 			);
 
 			const resolvedVars: Record<string, unknown> = {};
-			referenced.forEach((refId) => {
-				const val = resolve(refId, new Set(path));
+			for (const refId of referenced) {
+				const val = await resolve(refId, new Set(path));
 				const refVar = variables.find((x) => x.id === refId);
 				if (refVar?.hasError) {
 					throw new Error(`Dependency '${refId}' has error`);
 				}
 				resolvedVars[refId] = val;
-			});
+			}
 
 			const argNames = Object.keys(resolvedVars);
 			const argValues = Object.values(resolvedVars);
@@ -229,7 +245,11 @@ export function evaluateAllVariables(variables: Variable[]) {
 				argValues,
 			);
 			const fn = getCompiledFunction(formulaStr, names);
-			const rawResult = fn(...evalValues);
+			const rawResult = await fn(...evalValues);
+
+			if (evaluationId !== currentEvaluationId) {
+				throw new Error("Evaluation aborted");
+			}
 
 			if (
 				rawResult === null ||
@@ -251,6 +271,9 @@ export function evaluateAllVariables(variables: Variable[]) {
 			v.error = null;
 			return rawResult;
 		} catch (err: unknown) {
+			if (err instanceof Error && err.message === "Evaluation aborted") {
+				throw err;
+			}
 			errorVars.add(id);
 			v.hasError = true;
 			const message =
@@ -263,13 +286,15 @@ export function evaluateAllVariables(variables: Variable[]) {
 	}
 
 	// Resolve everyone
-	variables.forEach((v) => {
-		try {
-			resolve(v.id, new Set());
-		} catch (_e) {
-			// Circular references caught
+	try {
+		for (const v of variables) {
+			await resolve(v.id, new Set());
 		}
-	});
+	} catch (e) {
+		if (e instanceof Error && e.message === "Evaluation aborted") {
+			return;
+		}
+	}
 
 	// Mark all dependencies recursively failing if root fails
 	variables.forEach((v) => {

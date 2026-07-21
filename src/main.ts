@@ -202,7 +202,7 @@ window.addEventListener("mouseup", () => {
 	}
 });
 
-window.addEventListener("keydown", (e) => {
+window.addEventListener("keydown", async (e) => {
 	if (e.key === "Delete" || e.key === "Backspace") {
 		const activeEl = document.activeElement;
 		if (
@@ -234,7 +234,7 @@ window.addEventListener("keydown", (e) => {
 			(v) => !idsToDelete.includes(v.id),
 		);
 
-		evaluateAllVariables(activeBoard.variables);
+		await evaluateAllVariables(activeBoard.variables);
 		renderVariables();
 		updateInputsDisplay();
 	}
@@ -305,7 +305,8 @@ toggleBadgesBtn?.addEventListener("click", () => {
 // Initialize elements and bootstrap render
 initializeTooltip();
 updateBadgesVisibility();
-evaluateAllVariables(getActiveBoard().variables);
 renderVariables();
-updateInputsDisplay();
 renderTabsList();
+evaluateAllVariables(getActiveBoard().variables).then(() => {
+	updateInputsDisplay();
+});

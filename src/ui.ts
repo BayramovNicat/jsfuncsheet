@@ -171,8 +171,9 @@ export function addNewVariable(): void {
 	});
 
 	renderVariables();
-	evaluateAllVariables(activeBoard.variables);
-	updateInputsDisplay();
+	evaluateAllVariables(activeBoard.variables).then(() => {
+		updateInputsDisplay();
+	});
 }
 
 function getNextVacantYInColumn(
@@ -245,9 +246,10 @@ export function generateObjectTree(variable: Variable): void {
 		currentY = y + LAYOUT_CONFIG.ROW_PITCH;
 	}
 
-	evaluateAllVariables(activeBoard.variables);
-	renderVariables();
-	updateInputsDisplay();
+	evaluateAllVariables(activeBoard.variables).then(() => {
+		renderVariables();
+		updateInputsDisplay();
+	});
 }
 
 // Delete variable card State mutation
@@ -260,8 +262,9 @@ export function deleteVariable(id: string): void {
 	}
 	activeBoard.variables = activeBoard.variables.filter((v) => v.id !== id);
 	renderVariables();
-	evaluateAllVariables(activeBoard.variables);
-	updateInputsDisplay();
+	evaluateAllVariables(activeBoard.variables).then(() => {
+		updateInputsDisplay();
+	});
 }
 
 // Insert Variable ID at active textarea caret
@@ -319,9 +322,10 @@ export function insertBadgeId(id: string): void {
 		hideTooltip();
 	}
 
-	evaluateAllVariables(activeBoard.variables);
-	updateInputsDisplay();
-	drawConnections();
+	evaluateAllVariables(activeBoard.variables).then(() => {
+		updateInputsDisplay();
+		drawConnections();
+	});
 }
 
 // Separate listener hooks definition for variables (reduces nesting size in render)
@@ -493,8 +497,9 @@ function bindVariableCardEvents(
 		clearCardHighlights();
 		hideTooltip();
 
-		evaluateAllVariables(activeBoard.variables);
-		updateInputsDisplay();
+		evaluateAllVariables(activeBoard.variables).then(() => {
+			updateInputsDisplay();
+		});
 	});
 
 	const triggerInputUpdate = () => {
@@ -526,9 +531,10 @@ function bindVariableCardEvents(
 			hideTooltip();
 		}
 
-		evaluateAllVariables(activeBoard.variables);
-		updateInputsDisplay();
-		drawConnections();
+		evaluateAllVariables(activeBoard.variables).then(() => {
+			updateInputsDisplay();
+			drawConnections();
+		});
 	};
 
 	valInput.addEventListener("input", triggerInputUpdate);
@@ -829,8 +835,9 @@ export function renderTabsList(): void {
 			setActiveBoardId(board.id);
 			renderTabsList();
 			renderVariables();
-			evaluateAllVariables(getActiveBoard().variables);
-			updateInputsDisplay();
+			evaluateAllVariables(getActiveBoard().variables).then(() => {
+				updateInputsDisplay();
+			});
 		});
 
 		// Double click to rename tab inline
@@ -886,8 +893,9 @@ export function renderTabsList(): void {
 				}
 				renderTabsList();
 				renderVariables();
-				evaluateAllVariables(getActiveBoard().variables);
-				updateInputsDisplay();
+				evaluateAllVariables(getActiveBoard().variables).then(() => {
+					updateInputsDisplay();
+				});
 			}
 		});
 
@@ -943,8 +951,9 @@ export function createNewBoard(): void {
 	setActiveBoardId(newId);
 	renderTabsList();
 	renderVariables();
-	evaluateAllVariables(getActiveBoard().variables);
-	updateInputsDisplay();
+	evaluateAllVariables(getActiveBoard().variables).then(() => {
+		updateInputsDisplay();
+	});
 }
 
 export function updateBadgesVisibility(): void {
