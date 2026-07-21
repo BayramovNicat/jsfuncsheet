@@ -287,6 +287,11 @@ textarea.var-value-input {
 		color 0.15s ease;
 }
 
+.variable-card:not(:hover):not(:focus-within) textarea.var-value-input {
+	width: 100% !important;
+	overflow-x: hidden;
+}
+
 input[type="text"]:focus,
 input[type="number"]:focus {
 	outline: none !important;
