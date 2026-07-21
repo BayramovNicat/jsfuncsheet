@@ -101,6 +101,59 @@ export function initializeUiSelectors(
 export function updateInputsDisplay(): void {
 	const activeBoard = getActiveBoard();
 	activeBoard.variables.forEach((v) => {
+		if (v.type === "select") {
+			const optionsSelect = document.querySelector(
+				`.var-options-select[data-id="${v.id}"]`,
+			) as HTMLSelectElement | null;
+			if (optionsSelect) {
+				const sourceSelect = document.querySelector(
+					`.var-source-select[data-id="${v.id}"]`,
+				) as HTMLSelectElement | null;
+				if (sourceSelect) {
+					sourceSelect.value = v.selectOptionsVar || "";
+				}
+
+				let optionsHtml = '<option value="">(Empty Options)</option>';
+				if (v.selectOptionsVar) {
+					const sourceVar = activeBoard.variables.find(
+						(x) => x.id === v.selectOptionsVar,
+					);
+					if (sourceVar && !sourceVar.hasError) {
+						const rawVal = sourceVar.value;
+						const items = Array.isArray(rawVal)
+							? rawVal
+							: rawVal && typeof rawVal === "object"
+								? [rawVal]
+								: [];
+						if (items.length > 0) {
+							optionsHtml = items
+								.map((item, idx) => {
+									let label = "";
+									if (item && typeof item === "object") {
+										label =
+											item.name ||
+											item.label ||
+											item.title ||
+											item.id ||
+											`Item ${idx + 1}`;
+									} else {
+										label = String(item);
+									}
+									const itemValStr = JSON.stringify(item);
+									const activeValStr = JSON.stringify(v.value);
+									const isSelected =
+										activeValStr === itemValStr ? "selected" : "";
+									return `<option value="${idx}" ${isSelected}>${label}</option>`;
+								})
+								.join("");
+						}
+					}
+				}
+				optionsSelect.innerHTML = optionsHtml;
+			}
+			return;
+		}
+
 		const inputEl = document.querySelector(
 			`.var-value-input[data-id="${v.id}"]`,
 		) as HTMLTextAreaElement;
@@ -334,8 +387,8 @@ function bindVariableCardEvents(
 	variable: Variable,
 	activeBoard: Board,
 	labelSpan: HTMLSpanElement,
-	valInput: HTMLTextAreaElement,
-	overlayEl: HTMLDivElement,
+	valInput: HTMLTextAreaElement | null,
+	overlayEl: HTMLDivElement | null,
 	deleteBtn: HTMLButtonElement,
 	badgeBtn: HTMLDivElement,
 ) {
@@ -345,7 +398,9 @@ function bindVariableCardEvents(
 		if (
 			target.tagName === "INPUT" ||
 			target.tagName === "TEXTAREA" ||
+			target.tagName === "SELECT" ||
 			target.closest(".btn-delete") ||
+			target.closest(".btn-toggle-type") ||
 			target.closest(".btn-generate") ||
 			target.closest(".variable-badge") ||
 			e.shiftKey
@@ -396,302 +451,309 @@ function bindVariableCardEvents(
 		}
 	});
 
-	valInput.addEventListener("scroll", () => {
-		overlayEl.scrollLeft = valInput.scrollLeft;
-		overlayEl.scrollTop = valInput.scrollTop;
-	});
-
-	overlayEl.addEventListener("click", (e) => {
-		const target = e.target as HTMLElement;
-		if (target?.className.includes("hl-")) {
-			const varId = target.textContent?.trim();
-			if (varId) {
-				const targetInput = document.querySelector(
-					`.var-value-input[data-id="${varId}"]`,
-				) as HTMLTextAreaElement | null;
-				if (targetInput) {
-					targetInput.focus();
-				}
-			}
-		}
-	});
-
-	overlayEl.addEventListener("mouseover", (e) => {
-		if (!document.body.classList.contains("cmd-pressed")) return;
-		const target = e.target as HTMLElement;
-		if (target?.className.includes("hl-")) {
-			const varId = target.textContent?.trim();
-			if (varId) {
-				document
-					.querySelectorAll(".variable-card.navigation-highlight")
-					.forEach((card) => {
-						card.classList.remove("navigation-highlight");
-					});
-				inputsContainer.classList.add("highlighting-target");
-				const targetCard = document.querySelector(
-					`.variable-card[data-id="${varId}"]`,
-				) as HTMLElement | null;
-				if (targetCard) {
-					targetCard.classList.add("navigation-highlight");
-				}
-			}
-		}
-	});
-
-	overlayEl.addEventListener("mouseout", (e) => {
-		const target = e.target as HTMLElement;
-		if (target?.className.includes("hl-")) {
-			const related = e.relatedTarget as HTMLElement;
-			if (!related?.className.includes("hl-")) {
-				inputsContainer.classList.remove("highlighting-target");
-				document
-					.querySelectorAll(".variable-card.navigation-highlight")
-					.forEach((card) => {
-						card.classList.remove("navigation-highlight");
-					});
-			}
-		}
-	});
-
-	valInput.addEventListener("focus", () => {
-		valInput.value = variable.formula;
-		valInput.classList.remove("calc-error");
-		autoSizeTextarea(valInput);
-		requestAnimationFrame(() => {
-			autoSizeTextarea(valInput);
+	if (valInput && overlayEl) {
+		valInput.addEventListener("scroll", () => {
+			overlayEl.scrollLeft = valInput.scrollLeft;
+			overlayEl.scrollTop = valInput.scrollTop;
 		});
 
-		overlayEl.style.display = "block";
-		overlayEl.innerHTML = syntaxHighlight(
-			valInput.value,
-			variable.id,
-			activeBoard.variables,
-		);
-		overlayEl.scrollLeft = valInput.scrollLeft;
-		overlayEl.scrollTop = valInput.scrollTop;
-
-		updateCardHighlights(variable.id, valInput.value);
-
-		const check = compileFormula(
-			valInput.value,
-			variable.id,
-			activeBoard.variables,
-		);
-		if (check.error) {
-			valInput.setAttribute("data-tooltip", `⚠️ ${check.error}`);
-			valInput.classList.add("calc-error");
-			showTooltip(valInput);
-		} else {
-			valInput.removeAttribute("data-tooltip");
-			valInput.classList.remove("calc-error");
-		}
-	});
-
-	valInput.addEventListener("blur", () => {
-		valInput.style.width = "";
-		valInput.style.height = "";
-		valInput.removeAttribute("data-tooltip");
-		overlayEl.style.width = "";
-		overlayEl.style.height = "";
-		overlayEl.style.display = "none";
-		clearCardHighlights();
-		hideTooltip();
-
-		evaluateAllVariables(activeBoard.variables).then(() => {
-			updateInputsDisplay();
-		});
-	});
-
-	const triggerInputUpdate = () => {
-		variable.formula = valInput.value;
-		autoSizeTextarea(valInput);
-
-		overlayEl.innerHTML = syntaxHighlight(
-			valInput.value,
-			variable.id,
-			activeBoard.variables,
-		);
-		overlayEl.scrollLeft = valInput.scrollLeft;
-		overlayEl.scrollTop = valInput.scrollTop;
-
-		updateCardHighlights(variable.id, valInput.value);
-
-		const check = compileFormula(
-			valInput.value,
-			variable.id,
-			activeBoard.variables,
-		);
-		if (check.error) {
-			valInput.setAttribute("data-tooltip", `⚠️ ${check.error}`);
-			valInput.classList.add("calc-error");
-			showTooltip(valInput);
-		} else {
-			valInput.removeAttribute("data-tooltip");
-			valInput.classList.remove("calc-error");
-			hideTooltip();
-		}
-
-		evaluateAllVariables(activeBoard.variables).then(() => {
-			updateInputsDisplay();
-			drawConnections();
-		});
-	};
-
-	valInput.addEventListener("input", triggerInputUpdate);
-
-	valInput.addEventListener("keydown", (e) => {
-		if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-			const isNum = isStaticNumber(valInput.value);
-			if (isNum) {
-				e.preventDefault();
-				let val = parseFloat(valInput.value);
-				if (Number.isNaN(val)) val = 0;
-
-				const step = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
-				val += e.key === "ArrowUp" ? step : -step;
-
-				valInput.value = parseFloat(val.toFixed(4)).toString();
-				triggerInputUpdate();
-			}
-			return;
-		}
-
-		const PAIRS: Record<string, string> = {
-			"{": "}",
-			"[": "]",
-			"(": ")",
-			'"': '"',
-			"'": "'",
-			"`": "`",
-		};
-		const CLOSE_CHARS = new Set(["}", "]", ")", '"', "'", "`"]);
-
-		const start = valInput.selectionStart ?? 0;
-		const end = valInput.selectionEnd ?? 0;
-		const val = valInput.value;
-
-		if (PAIRS[e.key] !== undefined) {
-			e.preventDefault();
-			const openChar = e.key;
-			const closeChar = PAIRS[openChar];
-
-			if (
-				(openChar === '"' || openChar === "'" || openChar === "`") &&
-				start === end &&
-				val[start] === openChar
-			) {
-				valInput.setSelectionRange(start + 1, start + 1);
-				return;
-			}
-
-			if (start !== end) {
-				const selected = val.substring(start, end);
-				valInput.value =
-					val.substring(0, start) +
-					openChar +
-					selected +
-					closeChar +
-					val.substring(end);
-				valInput.setSelectionRange(start + 1, end + 1);
-			} else {
-				valInput.value =
-					val.substring(0, start) + openChar + closeChar + val.substring(start);
-				valInput.setSelectionRange(start + 1, start + 1);
-			}
-			triggerInputUpdate();
-			return;
-		}
-
-		if (CLOSE_CHARS.has(e.key) && start === end && val[start] === e.key) {
-			e.preventDefault();
-			valInput.setSelectionRange(start + 1, start + 1);
-			return;
-		}
-
-		if (e.key === "Backspace" && start === end && start > 0) {
-			const prevChar = val[start - 1];
-			const nextChar = val[start];
-			if (PAIRS[prevChar] === nextChar) {
-				e.preventDefault();
-				valInput.value = `${val.substring(0, start - 1)}${val.substring(start + 1)}`;
-				valInput.setSelectionRange(start - 1, start - 1);
-				triggerInputUpdate();
-				return;
-			}
-		}
-
-		if (e.key === "Tab") {
-			e.preventDefault();
-			if (!e.shiftKey) {
-				valInput.value = `${val.substring(0, start)}    ${val.substring(end)}`;
-				valInput.setSelectionRange(start + 4, start + 4);
-			} else {
-				if (start === end && start > 0) {
-					if (val.substring(start - 4, start) === "    ") {
-						valInput.value = `${val.substring(0, start - 4)}${val.substring(start)}`;
-						valInput.setSelectionRange(start - 4, start - 4);
-					} else if (val[start - 1] === "\t") {
-						valInput.value = `${val.substring(0, start - 1)}${val.substring(start)}`;
-						valInput.setSelectionRange(start - 1, start - 1);
+		overlayEl.addEventListener("click", (e) => {
+			const target = e.target as HTMLElement;
+			if (target?.className.includes("hl-")) {
+				const varId = target.textContent?.trim();
+				if (varId) {
+					const targetInput = document.querySelector(
+						`.var-value-input[data-id="${varId}"]`,
+					) as HTMLTextAreaElement | null;
+					if (targetInput) {
+						targetInput.focus();
 					}
 				}
 			}
-			triggerInputUpdate();
-			return;
-		}
+		});
 
-		if (e.key === "Enter") {
-			const beforeCursor = val.substring(0, start);
-			const lineStartIdx = beforeCursor.lastIndexOf("\n") + 1;
-			const currentLine = beforeCursor.substring(lineStartIdx);
-			const whitespaceMatch = currentLine.match(/^\s*/);
-			const leadingWhitespace = whitespaceMatch ? whitespaceMatch[0] : "";
+		overlayEl.addEventListener("mouseover", (e) => {
+			if (!document.body.classList.contains("cmd-pressed")) return;
+			const target = e.target as HTMLElement;
+			if (target?.className.includes("hl-")) {
+				const varId = target.textContent?.trim();
+				if (varId) {
+					document
+						.querySelectorAll(".variable-card.navigation-highlight")
+						.forEach((card) => {
+							card.classList.remove("navigation-highlight");
+						});
+					inputsContainer.classList.add("highlighting-target");
+					const targetCard = document.querySelector(
+						`.variable-card[data-id="${varId}"]`,
+					) as HTMLElement | null;
+					if (targetCard) {
+						targetCard.classList.add("navigation-highlight");
+					}
+				}
+			}
+		});
 
-			const lastChar = currentLine.trim().slice(-1);
-			const charAfter = val[start];
+		overlayEl.addEventListener("mouseout", (e) => {
+			const target = e.target as HTMLElement;
+			if (target?.className.includes("hl-")) {
+				const related = e.relatedTarget as HTMLElement;
+				if (!related?.className.includes("hl-")) {
+					inputsContainer.classList.remove("highlighting-target");
+					document
+						.querySelectorAll(".variable-card.navigation-highlight")
+						.forEach((card) => {
+							card.classList.remove("navigation-highlight");
+						});
+				}
+			}
+		});
 
-			if (
-				(lastChar === "{" && charAfter === "}") ||
-				(lastChar === "[" && charAfter === "]") ||
-				(lastChar === "(" && charAfter === ")")
-			) {
+		valInput.addEventListener("focus", () => {
+			valInput.value = variable.formula;
+			valInput.classList.remove("calc-error");
+			autoSizeTextarea(valInput);
+			requestAnimationFrame(() => {
+				autoSizeTextarea(valInput);
+			});
+
+			overlayEl.style.display = "block";
+			overlayEl.innerHTML = syntaxHighlight(
+				valInput.value,
+				variable.id,
+				activeBoard.variables,
+			);
+			overlayEl.scrollLeft = valInput.scrollLeft;
+			overlayEl.scrollTop = valInput.scrollTop;
+
+			updateCardHighlights(variable.id, valInput.value);
+
+			const check = compileFormula(
+				valInput.value,
+				variable.id,
+				activeBoard.variables,
+			);
+			if (check.error) {
+				valInput.setAttribute("data-tooltip", `⚠️ ${check.error}`);
+				valInput.classList.add("calc-error");
+				showTooltip(valInput);
+			} else {
+				valInput.removeAttribute("data-tooltip");
+				valInput.classList.remove("calc-error");
+			}
+		});
+
+		valInput.addEventListener("blur", () => {
+			valInput.style.width = "";
+			valInput.style.height = "";
+			valInput.removeAttribute("data-tooltip");
+			overlayEl.style.width = "";
+			overlayEl.style.height = "";
+			overlayEl.style.display = "none";
+			clearCardHighlights();
+			hideTooltip();
+
+			evaluateAllVariables(activeBoard.variables).then(() => {
+				updateInputsDisplay();
+			});
+		});
+
+		const triggerInputUpdate = () => {
+			variable.formula = valInput.value;
+			autoSizeTextarea(valInput);
+
+			overlayEl.innerHTML = syntaxHighlight(
+				valInput.value,
+				variable.id,
+				activeBoard.variables,
+			);
+			overlayEl.scrollLeft = valInput.scrollLeft;
+			overlayEl.scrollTop = valInput.scrollTop;
+
+			updateCardHighlights(variable.id, valInput.value);
+
+			const check = compileFormula(
+				valInput.value,
+				variable.id,
+				activeBoard.variables,
+			);
+			if (check.error) {
+				valInput.setAttribute("data-tooltip", `⚠️ ${check.error}`);
+				valInput.classList.add("calc-error");
+				showTooltip(valInput);
+			} else {
+				valInput.removeAttribute("data-tooltip");
+				valInput.classList.remove("calc-error");
+				hideTooltip();
+			}
+
+			evaluateAllVariables(activeBoard.variables).then(() => {
+				updateInputsDisplay();
+				drawConnections();
+			});
+		};
+
+		valInput.addEventListener("input", triggerInputUpdate);
+
+		valInput.addEventListener("keydown", (e) => {
+			if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+				const isNum = isStaticNumber(valInput.value);
+				if (isNum) {
+					e.preventDefault();
+					let val = parseFloat(valInput.value);
+					if (Number.isNaN(val)) val = 0;
+
+					const step = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
+					val += e.key === "ArrowUp" ? step : -step;
+
+					valInput.value = parseFloat(val.toFixed(4)).toString();
+					triggerInputUpdate();
+				}
+				return;
+			}
+
+			const PAIRS: Record<string, string> = {
+				"{": "}",
+				"[": "]",
+				"(": ")",
+				'"': '"',
+				"'": "'",
+				"`": "`",
+			};
+			const CLOSE_CHARS = new Set(["}", "]", ")", '"', "'", "`"]);
+
+			const start = valInput.selectionStart ?? 0;
+			const end = valInput.selectionEnd ?? 0;
+			const val = valInput.value;
+
+			if (PAIRS[e.key] !== undefined) {
 				e.preventDefault();
-				const indent = `${leadingWhitespace}    `;
-				valInput.value = `${val.substring(0, start)}\n${indent}\n${leadingWhitespace}${val.substring(start)}`;
-				const newPos = start + 1 + indent.length;
-				valInput.setSelectionRange(newPos, newPos);
+				const openChar = e.key;
+				const closeChar = PAIRS[openChar];
+
+				if (
+					(openChar === '"' || openChar === "'" || openChar === "`") &&
+					start === end &&
+					val[start] === openChar
+				) {
+					valInput.setSelectionRange(start + 1, start + 1);
+					return;
+				}
+
+				if (start !== end) {
+					const selected = val.substring(start, end);
+					valInput.value =
+						val.substring(0, start) +
+						openChar +
+						selected +
+						closeChar +
+						val.substring(end);
+					valInput.setSelectionRange(start + 1, end + 1);
+				} else {
+					valInput.value =
+						val.substring(0, start) +
+						openChar +
+						closeChar +
+						val.substring(start);
+					valInput.setSelectionRange(start + 1, start + 1);
+				}
 				triggerInputUpdate();
 				return;
 			}
 
-			if (
-				lastChar === "{" ||
-				lastChar === "[" ||
-				lastChar === "(" ||
-				val.includes("\n") ||
-				e.shiftKey
-			) {
+			if (CLOSE_CHARS.has(e.key) && start === end && val[start] === e.key) {
 				e.preventDefault();
-				const indent = `${leadingWhitespace}${
-					lastChar === "{" || lastChar === "[" || lastChar === "(" ? "    " : ""
-				}`;
-				valInput.value = `${val.substring(0, start)}\n${indent}${val.substring(start)}`;
-				const newPos = start + 1 + indent.length;
-				valInput.setSelectionRange(newPos, newPos);
+				valInput.setSelectionRange(start + 1, start + 1);
+				return;
+			}
+
+			if (e.key === "Backspace" && start === end && start > 0) {
+				const prevChar = val[start - 1];
+				const nextChar = val[start];
+				if (PAIRS[prevChar] === nextChar) {
+					e.preventDefault();
+					valInput.value = `${val.substring(0, start - 1)}${val.substring(start + 1)}`;
+					valInput.setSelectionRange(start - 1, start - 1);
+					triggerInputUpdate();
+					return;
+				}
+			}
+
+			if (e.key === "Tab") {
+				e.preventDefault();
+				if (!e.shiftKey) {
+					valInput.value = `${val.substring(0, start)}    ${val.substring(end)}`;
+					valInput.setSelectionRange(start + 4, start + 4);
+				} else {
+					if (start === end && start > 0) {
+						if (val.substring(start - 4, start) === "    ") {
+							valInput.value = `${val.substring(0, start - 4)}${val.substring(start)}`;
+							valInput.setSelectionRange(start - 4, start - 4);
+						} else if (val[start - 1] === "\t") {
+							valInput.value = `${val.substring(0, start - 1)}${val.substring(start)}`;
+							valInput.setSelectionRange(start - 1, start - 1);
+						}
+					}
+				}
 				triggerInputUpdate();
 				return;
 			}
 
-			if (!e.shiftKey) {
-				e.preventDefault();
+			if (e.key === "Enter") {
+				const beforeCursor = val.substring(0, start);
+				const lineStartIdx = beforeCursor.lastIndexOf("\n") + 1;
+				const currentLine = beforeCursor.substring(lineStartIdx);
+				const whitespaceMatch = currentLine.match(/^\s*/);
+				const leadingWhitespace = whitespaceMatch ? whitespaceMatch[0] : "";
+
+				const lastChar = currentLine.trim().slice(-1);
+				const charAfter = val[start];
+
+				if (
+					(lastChar === "{" && charAfter === "}") ||
+					(lastChar === "[" && charAfter === "]") ||
+					(lastChar === "(" && charAfter === ")")
+				) {
+					e.preventDefault();
+					const indent = `${leadingWhitespace}    `;
+					valInput.value = `${val.substring(0, start)}\n${indent}\n${leadingWhitespace}${val.substring(start)}`;
+					const newPos = start + 1 + indent.length;
+					valInput.setSelectionRange(newPos, newPos);
+					triggerInputUpdate();
+					return;
+				}
+
+				if (
+					lastChar === "{" ||
+					lastChar === "[" ||
+					lastChar === "(" ||
+					val.includes("\n") ||
+					e.shiftKey
+				) {
+					e.preventDefault();
+					const indent = `${leadingWhitespace}${
+						lastChar === "{" || lastChar === "[" || lastChar === "("
+							? "    "
+							: ""
+					}`;
+					valInput.value = `${val.substring(0, start)}\n${indent}${val.substring(start)}`;
+					const newPos = start + 1 + indent.length;
+					valInput.setSelectionRange(newPos, newPos);
+					triggerInputUpdate();
+					return;
+				}
+
+				if (!e.shiftKey) {
+					e.preventDefault();
+					valInput.blur();
+				}
+			}
+
+			if (e.key === "Escape") {
 				valInput.blur();
 			}
-		}
-
-		if (e.key === "Escape") {
-			valInput.blur();
-		}
-	});
+		});
+	}
 
 	deleteBtn.addEventListener("click", () => deleteVariable(variable.id));
 
@@ -700,6 +762,76 @@ function bindVariableCardEvents(
 	) as HTMLButtonElement | null;
 	if (generateBtn) {
 		generateBtn.addEventListener("click", () => generateObjectTree(variable));
+	}
+
+	const toggleTypeBtn = card.querySelector(
+		".btn-toggle-type",
+	) as HTMLButtonElement | null;
+	if (toggleTypeBtn) {
+		toggleTypeBtn.addEventListener("click", () => {
+			variable.type = variable.type === "select" ? "formula" : "select";
+			if (variable.type === "select") {
+				variable.selectOptionsVar = undefined;
+				variable.formula = "return null;";
+				variable.value = null;
+			} else {
+				variable.formula = "10";
+				variable.value = 10;
+			}
+			evaluateAllVariables(activeBoard.variables).then(() => {
+				renderVariables();
+				updateInputsDisplay();
+			});
+		});
+	}
+
+	const sourceSelect = card.querySelector(
+		".var-source-select",
+	) as HTMLSelectElement | null;
+	const optionsSelect = card.querySelector(
+		".var-options-select",
+	) as HTMLSelectElement | null;
+
+	if (sourceSelect) {
+		sourceSelect.addEventListener("change", () => {
+			variable.selectOptionsVar = sourceSelect.value || undefined;
+			variable.value = null;
+			variable.formula = "return null;";
+			evaluateAllVariables(activeBoard.variables).then(() => {
+				renderVariables();
+				updateInputsDisplay();
+			});
+		});
+	}
+
+	if (optionsSelect) {
+		optionsSelect.addEventListener("change", () => {
+			const selectedIndex = parseInt(optionsSelect.value);
+			if (Number.isNaN(selectedIndex)) return;
+
+			if (variable.selectOptionsVar) {
+				const sourceVar = activeBoard.variables.find(
+					(x) => x.id === variable.selectOptionsVar,
+				);
+				if (sourceVar && !sourceVar.hasError) {
+					const rawVal = sourceVar.value;
+					const items = Array.isArray(rawVal)
+						? rawVal
+						: rawVal && typeof rawVal === "object"
+							? [rawVal]
+							: [];
+					const selectedItem = items[selectedIndex];
+					if (selectedItem !== undefined) {
+						variable.value = selectedItem;
+						variable.formula = `return (${JSON.stringify(selectedItem)});`;
+						evaluateAllVariables(activeBoard.variables).then(() => {
+							updateInputsDisplay();
+							drawConnections();
+						});
+					}
+				}
+			}
+		});
 	}
 
 	card.addEventListener("mouseenter", () => {
@@ -711,7 +843,7 @@ function bindVariableCardEvents(
 			line.setAttribute("stroke-width", "3.5");
 		});
 
-		if (document.activeElement !== valInput) {
+		if (valInput && document.activeElement !== valInput) {
 			autoSizeTextarea(valInput);
 			drawConnections();
 		}
@@ -726,7 +858,7 @@ function bindVariableCardEvents(
 			line.setAttribute("stroke-width", "2");
 		});
 
-		if (document.activeElement !== valInput) {
+		if (valInput && document.activeElement !== valInput) {
 			valInput.style.width = "";
 			valInput.style.height = "";
 			drawConnections();
@@ -757,6 +889,74 @@ export function renderVariables(): void {
 			? ` data-tooltip="⚠️ ${variable.error || "Evaluation error"}" class="var-value-input calc-error"`
 			: ' class="var-value-input"';
 
+		let inputContentHtml = "";
+		if (variable.type === "select") {
+			const otherVars = activeBoard.variables.filter(
+				(x) => x.id !== variable.id,
+			);
+			const sourceOptionsHtml = [
+				`<option value="" ${!variable.selectOptionsVar ? "selected" : ""}>Source...</option>`,
+				...otherVars.map((x) => {
+					const isSelected =
+						variable.selectOptionsVar === x.id ? "selected" : "";
+					return `<option value="${x.id}" ${isSelected}>Source: ${x.id} (${x.label})</option>`;
+				}),
+			].join("");
+
+			let itemOptionsHtml = '<option value="">(Empty Options)</option>';
+			if (variable.selectOptionsVar) {
+				const sourceVar = activeBoard.variables.find(
+					(x) => x.id === variable.selectOptionsVar,
+				);
+				if (sourceVar && !sourceVar.hasError) {
+					const rawVal = sourceVar.value;
+					const items = Array.isArray(rawVal)
+						? rawVal
+						: rawVal && typeof rawVal === "object"
+							? [rawVal]
+							: [];
+					if (items.length > 0) {
+						itemOptionsHtml = items
+							.map((item, idx) => {
+								let label = "";
+								if (item && typeof item === "object") {
+									label =
+										item.name ||
+										item.label ||
+										item.title ||
+										item.id ||
+										`Item ${idx + 1}`;
+								} else {
+									label = String(item);
+								}
+								const itemValStr = JSON.stringify(item);
+								const activeValStr = JSON.stringify(variable.value);
+								const isSelected =
+									activeValStr === itemValStr ? "selected" : "";
+								return `<option value="${idx}" ${isSelected}>${label}</option>`;
+							})
+							.join("");
+					}
+				}
+			}
+
+			inputContentHtml = `
+				<div class="select-inputs-row" data-id="${variable.id}">
+					<select class="var-source-select" data-id="${variable.id}">
+						${sourceOptionsHtml}
+					</select>
+					<select class="var-options-select" data-id="${variable.id}">
+						${itemOptionsHtml}
+					</select>
+				</div>
+			`;
+		} else {
+			inputContentHtml = `
+				<textarea${errAttr} data-id="${variable.id}" spellcheck="false" autocomplete="off" rows="1">${displayVal}</textarea>
+				<div class="value-highlight-overlay" data-id="${variable.id}"></div>
+			`;
+		}
+
 		card.innerHTML = `
       <div class="variable-card-row">
         <div class="field-group">
@@ -774,13 +974,19 @@ export function renderVariables(): void {
             `
 								: ""
 						}
+            <button class="btn-toggle-type" data-tooltip="Toggle Formula / Dropdown Select" aria-label="Toggle Type">
+              ${
+								variable.type === "select"
+									? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h12"/></svg>`
+									: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m11 5 6 14M4 5h16M4 19h16"/></svg>`
+							}
+            </button>
             <button class="btn-delete" data-tooltip="Delete Variable" aria-label="Delete">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
             </button>
           </div>
           <div class="var-value-wrapper">
-            <textarea${errAttr} data-id="${variable.id}" spellcheck="false" autocomplete="off" rows="1">${displayVal}</textarea>
-            <div class="value-highlight-overlay" data-id="${variable.id}"></div>
+            ${inputContentHtml}
           </div>
         </div>
       </div>
@@ -789,10 +995,10 @@ export function renderVariables(): void {
 		const labelSpan = card.querySelector(".var-label-span") as HTMLSpanElement;
 		const valInput = card.querySelector(
 			".var-value-input",
-		) as HTMLTextAreaElement;
+		) as HTMLTextAreaElement | null;
 		const overlayEl = card.querySelector(
 			".value-highlight-overlay",
-		) as HTMLDivElement;
+		) as HTMLDivElement | null;
 		const deleteBtn = card.querySelector(".btn-delete") as HTMLButtonElement;
 		const badgeBtn = card.querySelector(".variable-badge") as HTMLDivElement;
 

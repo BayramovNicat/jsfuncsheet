@@ -365,8 +365,14 @@ export function getFormulaReferencedVariables(
 	activeId: string,
 	variables: Variable[],
 ): string[] {
-	const tokens = tokenize(formula, activeId, variables);
 	const refIds = new Set<string>();
+
+	const activeVar = variables.find((x) => x.id === activeId);
+	if (activeVar?.type === "select" && activeVar.selectOptionsVar) {
+		refIds.add(activeVar.selectOptionsVar);
+	}
+
+	const tokens = tokenize(formula, activeId, variables);
 	tokens.forEach((t) => {
 		if (t.type === "board-variable") {
 			refIds.add(t.text);

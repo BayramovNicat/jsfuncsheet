@@ -236,6 +236,30 @@ export async function evaluateAllVariables(variables: Variable[]) {
 				resolvedVars[refId] = val;
 			}
 
+			if (v.type === "select" && v.selectOptionsVar) {
+				const sourceVar = variables.find((x) => x.id === v.selectOptionsVar);
+				if (sourceVar && !sourceVar.hasError) {
+					const rawVal = sourceVar.value;
+					const items = Array.isArray(rawVal)
+						? rawVal
+						: rawVal && typeof rawVal === "object"
+							? [rawVal]
+							: [];
+					if (items.length > 0) {
+						const isEmpty =
+							v.value === null ||
+							v.value === undefined ||
+							v.formula === "return null;";
+						if (isEmpty) {
+							v.value = items[0];
+							v.formula = `return (${JSON.stringify(items[0])});`;
+						}
+					}
+				}
+			}
+
+			const formulaToUse = v.formula.trim();
+
 			const argNames = Object.keys(resolvedVars);
 			const argValues = Object.values(resolvedVars);
 
@@ -244,7 +268,7 @@ export async function evaluateAllVariables(variables: Variable[]) {
 				argNames,
 				argValues,
 			);
-			const fn = getCompiledFunction(formulaStr, names);
+			const fn = getCompiledFunction(formulaToUse, names);
 			const rawResult = await fn(...evalValues);
 
 			if (evaluationId !== currentEvaluationId) {
@@ -252,9 +276,9 @@ export async function evaluateAllVariables(variables: Variable[]) {
 			}
 
 			if (
-				rawResult === null ||
-				rawResult === undefined ||
-				(typeof rawResult !== "number" &&
+				(rawResult !== null &&
+					rawResult !== undefined &&
+					typeof rawResult !== "number" &&
 					typeof rawResult !== "function" &&
 					typeof rawResult !== "string" &&
 					typeof rawResult !== "boolean" &&

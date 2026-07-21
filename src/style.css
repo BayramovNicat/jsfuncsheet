@@ -876,3 +876,71 @@ body.hide-badges .variable-badge {
 		var(--shadow-lg),
 		0 0 0 4px rgba(37, 99, 235, 0.25) !important;
 }
+
+/* Toggle type select input styles */
+.btn-toggle-type {
+	background: transparent;
+	color: var(--text-muted);
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	opacity: 0;
+	pointer-events: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.25rem;
+	height: 1.25rem;
+	margin-right: 0.25rem;
+}
+
+.btn-toggle-type svg {
+	stroke: var(--text-muted);
+}
+
+.variable-card:hover .btn-toggle-type {
+	opacity: 0.5;
+	pointer-events: auto;
+}
+
+.btn-toggle-type:hover {
+	opacity: 1 !important;
+}
+
+.btn-toggle-type:hover svg {
+	stroke: var(--accent-primary);
+}
+
+.select-inputs-row {
+	display: flex;
+	gap: 0.4rem;
+	width: 100%;
+}
+
+select.var-source-select,
+select.var-options-select {
+	padding: 0.25rem 0.4rem;
+	border: 1px solid var(--border-light) !important;
+	border-radius: var(--radius-sm);
+	background: #ffffff !important;
+	color: var(--text-primary);
+	font-family: var(--font-mono) !important;
+	font-size: 0.85rem;
+	outline: none;
+	width: 100%;
+}
+
+select.var-source-select {
+	flex: 1;
+	max-width: 90px;
+}
+
+select.var-options-select {
+	flex: 2;
+}
+
+select.var-source-select:focus,
+select.var-options-select:focus {
+	border-color: var(--border-focus) !important;
+	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
