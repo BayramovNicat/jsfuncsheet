@@ -10,24 +10,15 @@ const defaultBoards: Board[] = [
 		variables: [
 			{
 				id: "A",
-				label: "API URL",
-				formula: `"https://pokeapi.co/api/v2/pokemon?limit=151"`,
-				value: "https://pokeapi.co/api/v2/pokemon?limit=151",
+				label: "Pokemon List",
+				formula: `const res = await fetch("https://pokeapi.co/api/v2/pokemon?limit=151");\nconst data = await res.json();\nreturn data.results;`,
+				value: [],
 				hasError: false,
 				x: 20,
 				y: 20,
 			},
 			{
 				id: "B",
-				label: "Fetch Pokemon List",
-				formula: `const res = await fetch(A);\nconst data = await res.json();\nreturn data.results;`,
-				value: [],
-				hasError: false,
-				x: 280,
-				y: 20,
-			},
-			{
-				id: "C",
 				label: "Selected Pokemon",
 				formula: "return null;",
 				value: null,
@@ -35,12 +26,21 @@ const defaultBoards: Board[] = [
 				x: 20,
 				y: 120,
 				type: "select",
-				selectOptionsVar: "B",
+				selectOptionsVar: "A",
+			},
+			{
+				id: "C",
+				label: "Pokemon Details",
+				formula: `if (!B || !B.url) return null;\nconst res = await fetch(B.url);\nconst data = await res.json();\nreturn {\n  height: data.height,\n  weight: data.weight,\n  types: data.types.map(t => t.type.name),\n  sprite: data.sprites.front_default\n};`,
+				value: null,
+				hasError: false,
+				x: 280,
+				y: 20,
 			},
 			{
 				id: "D",
-				label: "Pokemon Details",
-				formula: `if (!C || !C.url) return null;\nconst res = await fetch(C.url);\nconst data = await res.json();\nreturn {\n  height: data.height,\n  weight: data.weight,\n  types: data.types.map(t => t.type.name),\n  sprite: data.sprites.front_default\n};`,
+				label: "Sprite Image",
+				formula: "C?.sprite",
 				value: null,
 				hasError: false,
 				x: 280,
@@ -49,19 +49,10 @@ const defaultBoards: Board[] = [
 			{
 				id: "E",
 				label: "Stats Summary",
-				formula: `if (!C || !D) return "No pokemon selected";\nreturn \`\${C.name.toUpperCase()} weighs \${D.weight} units and is \${D.height} units tall.\`;`,
+				formula: `if (!B || !C) return "No pokemon selected";\nreturn \`\${B.name.toUpperCase()} weighs \${C.weight} units and is \${C.height} units tall.\`;`,
 				value: "",
 				hasError: false,
 				x: 280,
-				y: 220,
-			},
-			{
-				id: "F",
-				label: "Sprite Image",
-				formula: `return D ? D.sprite : null;`,
-				value: null,
-				hasError: false,
-				x: 20,
 				y: 220,
 			},
 		],
@@ -251,8 +242,22 @@ export function loadStateFromLocalStorage() {
 		if (storedBoards) {
 			const parsed = JSON.parse(storedBoards);
 			for (const db of defaultBoards) {
-				if (!parsed.some((x: Board) => x.id === db.id)) {
+				const idx = parsed.findIndex((x: Board) => x.id === db.id);
+				if (idx === -1) {
 					parsed.push(db);
+				} else {
+					const existing = parsed[idx];
+					// Check if outdated by checking if variable 'F' exists or if variable 'A' label is "API URL"
+					const isOutdated = existing.variables.some(
+						(v: any) =>
+							v.id === "F" ||
+							(v.id === "A" && v.label === "API URL") ||
+							(v.id === "D" && v.formula === "return C ? C.sprite : null;") ||
+							(v.id === "D" && v.formula === "C ? C.sprite : null"),
+					);
+					if (isOutdated) {
+						parsed[idx] = db;
+					}
 				}
 			}
 			boards = parsed;
