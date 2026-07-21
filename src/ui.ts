@@ -773,14 +773,20 @@ function bindVariableCardEvents(
 	) as HTMLButtonElement | null;
 	if (toggleTypeBtn) {
 		toggleTypeBtn.addEventListener("click", () => {
-			variable.type = variable.type === "select" ? "formula" : "select";
 			if (variable.type === "select") {
-				variable.selectOptionsVar = undefined;
-				variable.formula = "return null;";
-				variable.value = null;
+				variable.type = "formula";
+				variable.lastSelectOptionsVar = variable.selectOptionsVar;
+				if (variable.lastFormula) {
+					variable.formula = variable.lastFormula;
+				}
 			} else {
-				variable.formula = "10";
-				variable.value = 10;
+				variable.type = "select";
+				variable.lastFormula = variable.formula;
+				variable.selectOptionsVar = variable.lastSelectOptionsVar;
+				if (!variable.selectOptionsVar) {
+					variable.formula = "return null;";
+					variable.value = null;
+				}
 			}
 			evaluateAllVariables(activeBoard.variables).then(() => {
 				renderVariables();

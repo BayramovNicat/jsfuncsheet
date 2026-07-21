@@ -10,6 +10,8 @@ export interface Variable {
 	colorIndex?: number; // Persistent color index (1 to 10)
 	type?: "formula" | "select";
 	selectOptionsVar?: string;
+	lastFormula?: string;
+	lastSelectOptionsVar?: string;
 }
 
 export interface Board {
