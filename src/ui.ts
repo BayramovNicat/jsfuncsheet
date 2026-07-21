@@ -915,7 +915,7 @@ export function renderVariables(): void {
 				...otherVars.map((x) => {
 					const isSelected =
 						variable.selectOptionsVar === x.id ? "selected" : "";
-					return `<option value="${x.id}" ${isSelected}>Source: ${x.id} (${x.label})</option>`;
+					return `<option value="${x.id}" ${isSelected}>${x.id} (${x.label})</option>`;
 				}),
 			].join("");
 
