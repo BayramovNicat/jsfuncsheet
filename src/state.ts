@@ -3,7 +3,58 @@ import type { Board } from "./types";
 import { LAYOUT_CONFIG } from "./types";
 
 // Default seeded template boards data
-let boards: Board[] = [
+const defaultBoards: Board[] = [
+	{
+		id: "pokemon",
+		name: "Pokemon Finder",
+		variables: [
+			{
+				id: "A",
+				label: "API URL",
+				formula: `"https://pokeapi.co/api/v2/pokemon?limit=151"`,
+				value: "https://pokeapi.co/api/v2/pokemon?limit=151",
+				hasError: false,
+				x: 20,
+				y: 20,
+			},
+			{
+				id: "B",
+				label: "Fetch Pokemon List",
+				formula: `const res = await fetch(A);\nconst data = await res.json();\nreturn data.results;`,
+				value: [],
+				hasError: false,
+				x: 280,
+				y: 20,
+			},
+			{
+				id: "C",
+				label: "Query Filter",
+				formula: `"char"`,
+				value: "char",
+				hasError: false,
+				x: 20,
+				y: 100,
+			},
+			{
+				id: "D",
+				label: "Min Name Length",
+				formula: "6",
+				value: 6,
+				hasError: false,
+				x: 20,
+				y: 180,
+			},
+			{
+				id: "E",
+				label: "Filtered Results",
+				formula: `const list = B || [];\nconst query = String(C || "").toLowerCase();\nreturn list.filter(p => {\n  return p.name.includes(query) && p.name.length >= D;\n});`,
+				value: [],
+				hasError: false,
+				x: 280,
+				y: 180,
+			},
+		],
+	},
 	{
 		id: "compound",
 		name: "Compound Interest Calculator",
@@ -110,7 +161,9 @@ let boards: Board[] = [
 	},
 ];
 
-let activeBoardId = "compound";
+let boards: Board[] = [...defaultBoards];
+
+let activeBoardId = "pokemon";
 let showConnections = true;
 let showBadges = true;
 
@@ -185,10 +238,19 @@ export function loadStateFromLocalStorage() {
 		}
 
 		if (storedBoards) {
-			boards = JSON.parse(storedBoards);
+			const parsed = JSON.parse(storedBoards);
+			for (const db of defaultBoards) {
+				if (!parsed.some((x: Board) => x.id === db.id)) {
+					parsed.push(db);
+				}
+			}
+			boards = parsed;
 		}
 		if (storedActiveId) {
 			activeBoardId = storedActiveId;
+		}
+		if (!boards.some((b) => b.id === activeBoardId)) {
+			activeBoardId = boards[0]?.id || "pokemon";
 		}
 		if (storedShow !== null) {
 			showConnections = storedShow === "true";
