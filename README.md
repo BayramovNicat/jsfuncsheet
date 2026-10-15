@@ -15,6 +15,7 @@ JsFuncSheet is a visual, reactive calculator board that blends spreadsheet formu
 - **🛠️ Strict JavaScript Mode Formulas**: Supports complex JavaScript in calculation fields, enabling loops, block declarations, and conditional blocks (e.g. `let total = A; for (let i = 0; i < 5; i++) { ... } return total;`).
 - **🔍 Circular Dependency Tracer & Tooltips**: Instantly spots circular reference paths (e.g., `E -> D -> E`) and displays detailed evaluation error diagnostics inside custom styled tooltips.
 - **🧭 Cmd-Navigate (Visual Navigation Links)**: Tap `Cmd` or `Control` and hover over a highlighted variable inside code text to dim other cells and highlight targets. Click to instantly focus that variable card's input.
+- **🔗 Sharable Tab Links**: Export and share any single board/tab instantly via compressed, URL-safe links (`#tab=...`). Opening the link seamlessly imports and activates the board with automatic deduplication.
 - **🎯 Persistent Workspace**: Automatically saves and loads your dynamic boards and active environment layout configurations from local storage.
 
 ## 🚀 Getting Started

@@ -7,6 +7,7 @@ import {
 	isImageUrl,
 	isStaticNumber,
 } from "./math";
+import { handleShareTab } from "./share";
 import {
 	clearCardHighlights,
 	generateNextId,
@@ -1062,11 +1063,21 @@ export function renderTabsList(): void {
 		// Switch active board on click
 		tab.addEventListener("click", (e) => {
 			const target = e.target as HTMLElement;
-			if (target.closest(".btn-tab-close") || target.tagName === "INPUT") {
+			if (
+				target.closest(".btn-tab-close") ||
+				target.closest(".btn-tab-share") ||
+				target.tagName === "INPUT"
+			) {
 				return;
 			}
 			if (getActiveBoardId() === board.id) {
 				return;
+			}
+			if (
+				window.location.hash.startsWith("#tab=") ||
+				window.location.hash.startsWith("#board=")
+			) {
+				window.history.replaceState(null, "", window.location.pathname);
 			}
 			setActiveBoardId(board.id);
 			renderTabsList();
@@ -1106,10 +1117,19 @@ export function renderTabsList(): void {
 
 		tab.innerHTML = `
       <span class="board-tab-name-span">${board.name}</span>
+      <button class="btn-tab-share" data-tooltip="Share Tab Link" aria-label="Share">
+        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+      </button>
       <button class="btn-tab-close" data-tooltip="Close Board" aria-label="Close">
         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     `;
+
+		const shareBtn = tab.querySelector(".btn-tab-share") as HTMLButtonElement;
+		shareBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			handleShareTab(board, shareBtn);
+		});
 
 		const closeBtn = tab.querySelector(".btn-tab-close") as HTMLButtonElement;
 		closeBtn.addEventListener("click", () => {

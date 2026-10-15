@@ -1,6 +1,7 @@
 import "./style.css";
 import { calculateDraggedPosition } from "./canvas";
 import { evaluateAllVariables } from "./math";
+import { handleShareTab, importSharedTabFromUrl } from "./share";
 import {
 	getActiveBoard,
 	getShowBadges,
@@ -302,12 +303,37 @@ toggleBadgesBtn?.addEventListener("click", () => {
 	renderTabsList();
 });
 
+const shareBoardBtn = document.getElementById(
+	"share-board-btn",
+) as HTMLButtonElement | null;
+shareBoardBtn?.addEventListener("click", () => {
+	handleShareTab(getActiveBoard(), shareBoardBtn);
+});
+
 // Initialize elements and bootstrap render
-initializeTooltip();
-updateBadgesVisibility();
-renderVariables();
-renderTabsList();
-evaluateAllVariables(getActiveBoard().variables).then(() => {
+async function initApp() {
+	initializeTooltip();
+	updateBadgesVisibility();
+
+	// Check and import shared tab from URL if present
+	await importSharedTabFromUrl();
+
+	renderVariables();
+	renderTabsList();
+	await evaluateAllVariables(getActiveBoard().variables);
 	renderVariables();
 	updateInputsDisplay();
+}
+
+initApp();
+
+window.addEventListener("hashchange", async () => {
+	const sharedBoard = await importSharedTabFromUrl();
+	if (sharedBoard) {
+		renderTabsList();
+		renderVariables();
+		await evaluateAllVariables(sharedBoard.variables);
+		renderVariables();
+		updateInputsDisplay();
+	}
 });

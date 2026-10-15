@@ -95,9 +95,7 @@ function compileFunctionContext(
 		: `"use strict"; return (${formulaStr});`;
 
 	if (hasAwait) {
-		const AsyncFunction = Object.getPrototypeOf(
-			async function () {},
-		).constructor;
+		const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
 		return new AsyncFunction(...parameterNames, functionBody) as (
 			...args: unknown[]
 		) => unknown;
