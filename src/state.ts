@@ -241,26 +241,26 @@ export function loadStateFromLocalStorage() {
 
 		if (storedBoards) {
 			const parsed = JSON.parse(storedBoards);
-			for (const db of defaultBoards) {
-				const idx = parsed.findIndex((x: Board) => x.id === db.id);
-				if (idx === -1) {
-					parsed.push(db);
-				} else {
-					const existing = parsed[idx];
-					// Check if outdated by checking if variable 'F' exists or if variable 'A' label is "API URL"
-					const isOutdated = existing.variables.some(
-						(v: any) =>
-							v.id === "F" ||
-							(v.id === "A" && v.label === "API URL") ||
-							(v.id === "D" && v.formula === "return C ? C.sprite : null;") ||
-							(v.id === "D" && v.formula === "C ? C.sprite : null"),
-					);
-					if (isOutdated) {
-						parsed[idx] = db;
+			if (Array.isArray(parsed) && parsed.length > 0) {
+				for (const db of defaultBoards) {
+					const idx = parsed.findIndex((x: Board) => x.id === db.id);
+					if (idx !== -1) {
+						const existing = parsed[idx];
+						// Check if outdated by checking if variable 'F' exists or if variable 'A' label is "API URL"
+						const isOutdated = existing.variables.some(
+							(v: any) =>
+								v.id === "F" ||
+								(v.id === "A" && v.label === "API URL") ||
+								(v.id === "D" && v.formula === "return C ? C.sprite : null;") ||
+								(v.id === "D" && v.formula === "C ? C.sprite : null"),
+						);
+						if (isOutdated) {
+							parsed[idx] = db;
+						}
 					}
 				}
+				boards = parsed;
 			}
-			boards = parsed;
 		}
 		if (storedActiveId) {
 			activeBoardId = storedActiveId;
