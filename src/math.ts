@@ -34,14 +34,19 @@ export function formatDisplayValue(val: unknown): string {
 	if (typeof val !== "number") {
 		return String(val);
 	}
+	if (!Number.isFinite(val)) {
+		return String(val);
+	}
 	const formatted = val.toFixed(2);
 	if (formatted.endsWith(".00")) {
-		return val.toString();
+		const res = formatted.slice(0, -3);
+		return res === "-0" ? "0" : res;
 	}
 	if (formatted.endsWith("0")) {
-		return val.toFixed(1);
+		const res = formatted.slice(0, -1);
+		return res === "-0.0" ? "0" : res;
 	}
-	return formatted;
+	return formatted === "-0.00" ? "0" : formatted;
 }
 
 export function isImageUrl(val: unknown): boolean {
